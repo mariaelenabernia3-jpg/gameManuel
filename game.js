@@ -2,7 +2,7 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 // --- Variables de Estado del Juego ---
-let level, score, isGameOver, difficultyMultiplier, currentBossIndex, activeControl = 'mouse';
+let level, score, isGameOver, difficultyMultiplier, currentBossIndex, activeControl = 'none'; // --- CAMBIO CLAVE: Inicia sin control activo ---
 let stars = [];
 let combo = { count: 0, multiplier: 1, timer: 0 };
 const entityArrays = { bossProjectiles: [], playerBullets: [], explosions: [], minions: [], powerUps: [], minionProjectiles: [] };
@@ -44,6 +44,7 @@ function startGame(diffMult) {
     ui.startMenu.style.display = 'none';
     const savedProgress = localStorage.getItem(PLAYER_PROGRESS_KEY);
     const playerProgress = savedProgress ? JSON.parse(savedProgress) : { currency: 0, selectedShip: 'interceptor', unlockedShips: ['interceptor'], shipUpgrades: { 'interceptor': { damage: 0, firerate: 0 }, 'vanguard': { damage: 0, spread: 0 }, 'striker': { mainDamage: 0, sideDamage: 0 } } };
+    
     const selectedShipId = playerProgress.selectedShip || 'interceptor';
     const shipBaseStats = shipsData[selectedShipId];
     const shipUpgrades = playerProgress.shipUpgrades[selectedShipId];
@@ -53,11 +54,12 @@ function startGame(diffMult) {
     else if (selectedShipId === 'vanguard') { finalStats.damage = shipBaseStats.baseDamage + (shipUpgrades.damage * shipBaseStats.upgrades.damage.increment); finalStats.spreadAngle = 0.2 + (shipUpgrades.spread * shipBaseStats.upgrades.spread.increment); }
     else if (selectedShipId === 'striker') { finalStats.damage = shipBaseStats.baseDamage + (shipUpgrades.mainDamage * shipBaseStats.upgrades.mainDamage.increment); finalStats.sideDamage = 4 + (shipUpgrades.sideDamage * shipBaseStats.upgrades.sideDamage.increment); }
     finalStats.speed = shipBaseStats.baseSpeed;
+    
     resetGame(finalStats);
     gameLoop();
 }
 
-function resetGame(finalStats) { isGameOver = false; level = 1; score = 0; currentBossIndex = 0; activeControl = 'mouse'; combo = { count: 0, multiplier: 1, timer: 0 }; minionsDestroyedInLevel = 0; damageTakenInLevel = 0; coinsEarnedThisGame = 0; if (achievements.allPowerups) achievements.allPowerups.progress = new Set(); player = { x: canvas.width / 2 - 25, y: canvas.height - 100, health: 100, maxHealth: 100, lastShot: 0, shieldExpiresAt: 0, tripleShotExpiresAt: 0, isFiringLaser: false, specialMeter: 0, maxSpecial: 100, size: 50, ...finalStats }; for (const key in entityArrays) { entityArrays[key].length = 0; } increaseSpecialMeter(0); ui.laserBtn.style.display = 'none'; loadNextBoss(); }
+function resetGame(finalStats) { isGameOver = false; level = 1; score = 0; currentBossIndex = 0; activeControl = 'none'; combo = { count: 0, multiplier: 1, timer: 0 }; minionsDestroyedInLevel = 0; damageTakenInLevel = 0; coinsEarnedThisGame = 0; if (achievements.allPowerups) achievements.allPowerups.progress = new Set(); player = { x: canvas.width / 2 - 25, y: canvas.height - 100, health: 100, maxHealth: 100, lastShot: 0, shieldExpiresAt: 0, tripleShotExpiresAt: 0, isFiringLaser: false, specialMeter: 0, maxSpecial: 100, size: 50, ...finalStats }; for (const key in entityArrays) { entityArrays[key].length = 0; } increaseSpecialMeter(0); ui.laserBtn.style.display = 'none'; loadNextBoss(); }
 function loadNextBoss() { damageTakenInLevel = 0; const bossData = bosses[currentBossIndex]; boss = { ...bossData, x: canvas.width / 2 - bossData.width / 2, y: 50, speed: (2 + level * 0.1) * difficultyMultiplier, shootInterval: Math.max(200, 1000 - level * 50), health: (100 + level * 75) * difficultyMultiplier, maxHealth: (100 + level * 75) * difficultyMultiplier, lastShot: 0, spiralAngle: 0 }; createStars(); }
 
 let lastTime = 0; function gameLoop(timestamp) { if (isGameOver) return; const deltaTime = (timestamp - lastTime) / 1000 || 0; lastTime = timestamp; score++; update(deltaTime); draw(); requestAnimationFrame(gameLoop); }
@@ -76,40 +78,10 @@ canvas.addEventListener('mousemove', e => { activeControl = 'mouse'; mousePos.x 
 window.addEventListener("keydown", e => { const key = e.key.toLowerCase(); if (["arrowup", "w", "arrowdown", "s", "arrowleft", "a", "arrowright", "d"].includes(key)) { activeControl = 'keyboard'; } switch (key) { case "arrowup": case "w": direction = "up"; break; case "arrowdown": case "s": direction = "down"; break; case "arrowleft": case "a": direction = "left"; break; case "arrowright": case "d": direction = "right"; break; case " ": e.preventDefault(); fireLaser(); break; } });
 window.addEventListener("keyup", e => { switch(e.key.toLowerCase()){case "arrowup":case "w":if(direction==="up")direction=null;break;case "arrowdown":case "s":if(direction==="down")direction=null;break;case "arrowleft":case "a":if(direction==="left")direction=null;break;case "arrowright":case "d":if(direction==="right")direction=null;break;} });
 
-// --- INICIO: CONTROLES TÁCTILES ---
-let isDragging = false;
-let dragOffsetX = 0;
-let dragOffsetY = 0;
-
-canvas.addEventListener('touchstart', e => {
-    e.preventDefault();
-    if (isGameOver) return;
-    activeControl = 'touch';
-    const touch = e.touches[0];
-    // Comprobar si el toque está dentro de la nave
-    if (touch.clientX > player.x && touch.clientX < player.x + player.size &&
-        touch.clientY > player.y && touch.clientY < player.y + player.size) {
-        isDragging = true;
-        // Calcular el desfase entre el toque y la esquina superior izquierda de la nave
-        dragOffsetX = touch.clientX - player.x;
-        dragOffsetY = touch.clientY - player.y;
-    }
-}, { passive: false });
-
-canvas.addEventListener('touchmove', e => {
-    e.preventDefault();
-    if (isDragging) {
-        const touch = e.touches[0];
-        // Mover la nave manteniendo el desfase
-        player.x = touch.clientX - dragOffsetX;
-        player.y = touch.clientY - dragOffsetY;
-    }
-}, { passive: false });
-
-canvas.addEventListener('touchend', () => {
-    isDragging = false;
-});
-// --- FIN: CONTROLES TÁCTILES ---
+let isDragging = false; let dragOffsetX = 0; let dragOffsetY = 0;
+canvas.addEventListener('touchstart', e => { e.preventDefault(); if (isGameOver) return; activeControl = 'touch'; const touch = e.touches[0]; if (touch.clientX > player.x && touch.clientX < player.x + player.size && touch.clientY > player.y && touch.clientY < player.y + player.size) { isDragging = true; dragOffsetX = touch.clientX - player.x; dragOffsetY = touch.clientY - player.y; } }, { passive: false });
+canvas.addEventListener('touchmove', e => { e.preventDefault(); if (isDragging) { const touch = e.touches[0]; player.x = touch.clientX - dragOffsetX; player.y = touch.clientY - dragOffsetY; } }, { passive: false });
+canvas.addEventListener('touchend', () => { isDragging = false; });
 
 // --- Lógica de Juego Detallada ---
 function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
