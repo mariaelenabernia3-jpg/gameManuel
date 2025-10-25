@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AceCraft Evolution</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      display: block;
+      background: #000;
+    }
+    #upgradeBtn {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        padding: 10px 15px;
+        font-size: 16px;
+        background-color: #007BFF;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        z-index: 20;
+    }
+    .modal {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 320px;
+        background-color: rgba(20, 20, 40, 0.95);
+        color: white;
+        border: 2px solid #007BFF;
+        border-radius: 10px;
+        padding: 20px;
+        z-index: 30;
+        display: none;
+    }
+    .modal h2 {
+        text-align: center;
+        margin-top: 0;
+    }
+    #upgrade-menu .coin-display { text-align: center; margin-bottom: 20px; font-size: 1.2em; color: #FFD700; }
+    #upgrade-menu .upgrade-option { display: flex; flex-direction: column; margin-bottom: 15px; }
+    #upgrade-menu button { padding: 12px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; background-color: #0056b3; color: white; width: 100%; }
+    #upgrade-menu button:hover { background-color: #003d82; }
+    #upgrade-menu .upgrade-option span { font-size: 0.9em; text-align: center; margin-bottom: 5px; color: #ccc; }
+    #close-menu-btn { margin-top: 10px; background-color: #6c757d !important; }
+    #highscore-table h3 { text-align: center; color: #FFD700; }
+    #highscore-list { list-style: none; padding: 0; }
+    #highscore-list li { display: flex; justify-content: space-between; padding: 8px 12px; margin-bottom: 5px; background: rgba(255,255,255,0.1); border-radius: 4px; }
+    #highscore-list li .name { font-weight: bold; }
+    #highscore-list li .score { color: #FFD700; }
+    #play-again-btn { margin-top: 20px; background-color: #28a745 !important; width: 100%; padding: 12px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <button id="upgradeBtn">Mejoras ⬆️</button>
+
+  <div id="upgrade-menu" class="modal">
+      <h2>Tienda de Mejoras</h2>
+      <div class="coin-display">Monedas: <span id="coin-count">0</span></div>
+      <div class="upgrade-option">
+          <span id="speed-stat"></span>
+          <button id="upgrade-speed-btn">Mejorar Velocidad (Costo: 2)</button>
+      </div>
+      <div class="upgrade-option">
+          <span id="damage-stat"></span>
+          <button id="upgrade-damage-btn">Mejorar Daño (Costo: 3)</button>
+      </div>
+      <div class="upgrade-option">
+          <span id="firerate-stat"></span>
+          <button id="upgrade-firerate-btn">Mejorar Cadencia (Costo: 4)</button>
+      </div>
+      <button id="close-menu-btn">Continuar</button>
+  </div>
+
+  <div id="highscore-table" class="modal">
+      <h2>Fin del Juego</h2>
+      <h3>Mejores Puntuaciones</h3>
+      <ol id="highscore-list"></ol>
+      <button id="play-again-btn">Jugar de Nuevo</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    let level, coins, score, isGamePaused, isGameOver;
+
+    // --- Carga de Sprites ---
+    const playerSprite = new Image();
+    playerSprite.src = 'assets/nave.png';
+    let playerSpriteLoaded = false;
+    playerSprite.onload = () => { playerSpriteLoaded = true; };
+    playerSprite.onerror = () => { console.error("No se pudo cargar 'assets/nave.png'."); };
+
+    const bossSprite = new Image();
+    bossSprite.src = 'assets/Boss1.png';
+    let bossSpriteLoaded = false;
+    bossSprite.onload = () => { bossSpriteLoaded = true; };
+    bossSprite.onerror = () => { console.error("No se pudo cargar 'assets/Boss1.png'."); };
+
+    // --- NUEVO: Carga de Sonidos ---
+    const shootSound = new Audio('assets/hitHurt.wav');
+    const explosionSound = new Audio('assets/explosion.wav');
+    shootSound.onerror = () => { console.error("No se pudo cargar 'assets/hitHurt.wav'."); };
+    explosionSound.onerror = () => { console.error("No se pudo cargar 'assets/explosion.mp3'."); };
+
+
+    // --- MODIFICADO: Ajuste de tamaño del jugador ---
+    const playerDefaults = { speed: 5, damage: 10, shootInterval: 450, size: 40 };
+    let player = {};
+
+    // --- MODIFICADO: Ajuste de tamaño del jefe ---
+    const boss = { x: canvas.width / 2 - 70, y: 50, width: 140, height: 70, color: "red", speed: 2, shootInterval: 1000, lastShot: 0, health: 100, maxHealth: 100 };
+    const bossProjectiles = [], playerBullets = [], explosions = [], minions = [], minionProjectiles = [];
+
+    let stars = [];
+    function createStars() {
+        stars = [];
+        for (let i = 0; i < 100; i++) {
+            stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5 });
+        }
+    }
+    function updateStars() {
+        stars.forEach(star => {
+            star.y += star.speed;
+            if (star.y > canvas.height) { star.y = 0; star.x = Math.random() * canvas.width; }
+        });
+    }
+    function drawStars() {
+        ctx.fillStyle = "white";
+        stars.forEach(star => { ctx.fillRect(star.x, star.y, star.size, star.size); });
+    }
+
+    const upgradeMenu = document.getElementById('upgrade-menu'), openUpgradeBtn = document.getElementById('upgradeBtn'), closeUpgradeBtn = document.getElementById('close-menu-btn'), coinCountSpan = document.getElementById('coin-count'), speedStatSpan = document.getElementById('speed-stat'), damageStatSpan = document.getElementById('damage-stat'), firerateStatSpan = document.getElementById('firerate-stat'), upgradeSpeedBtn = document.getElementById('upgrade-speed-btn'), upgradeDamageBtn = document.getElementById('upgrade-damage-btn'), upgradeFirerateBtn = document.getElementById('upgrade-firerate-btn');
+    const highscoreTable = document.getElementById('highscore-table'), highscoreList = document.getElementById('highscore-list'), playAgainBtn = document.getElementById('play-again-btn');
+
+    function updateUpgradeUI() {
+        coinCountSpan.textContent = coins.toFixed(1);
+        speedStatSpan.textContent = `Velocidad Actual: ${player.speed.toFixed(1)}`;
+        damageStatSpan.textContent = `Daño Actual: ${player.damage}`;
+        firerateStatSpan.textContent = `Cadencia Actual: ${player.shootInterval}ms`;
+    }
+    openUpgradeBtn.addEventListener('click', () => { isGamePaused = true; updateUpgradeUI(); upgradeMenu.style.display = 'block'; });
+    closeUpgradeBtn.addEventListener('click', () => { isGamePaused = false; upgradeMenu.style.display = 'none'; });
+    upgradeSpeedBtn.addEventListener('click', () => { const c = 2; if (coins >= c) { player.speed += 0.5; coins -= c; updateUpgradeUI(); } else { alert("Monedas insuficientes."); } });
+    upgradeDamageBtn.addEventListener('click', () => { const c = 3; if (coins >= c) { player.damage += 5; coins -= c; updateUpgradeUI(); } else { alert("Monedas insuficientes."); } });
+    upgradeFirerateBtn.addEventListener('click', () => { const c = 4; if (coins >= c) { player.shootInterval = Math.max(50, player.shootInterval - 20); coins -= c; updateUpgradeUI(); } else { alert("Monedas insuficientes."); } });
+    playAgainBtn.addEventListener('click', () => { highscoreTable.style.display = 'none'; resetGame(); });
+
+    const HIGH_SCORES_KEY = 'aceCraftHighScores';
+    function initializeHighScores() {
+        if (!localStorage.getItem(HIGH_SCORES_KEY)) {
+            const defaultScores = [
+                { name: 'ACE_PILOT', score: 50000 }, { name: 'VOID_DRIFTER', score: 35000 }, { name: 'NOVA_STRIKER', score: 20000 }, { name: 'CYGNUS_X1', score: 10000 }, { name: 'ROOKIE', score: 5000 },
+            ];
+            localStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(defaultScores));
+        }
+    }
+    function saveAndShowScores() {
+        isGameOver = true;
+        const name = prompt("Fin del Juego. Introduce tu nombre para la tabla de récords:", "PILOTO");
+        const finalScore = { name: name || "PILOTO", score: score };
+        const scores = JSON.parse(localStorage.getItem(HIGH_SCORES_KEY));
+        scores.push(finalScore);
+        scores.sort((a, b) => b.score - a.score);
+        scores.splice(5);
+        localStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(scores));
+        highscoreList.innerHTML = '';
+        scores.forEach(s => { const li = document.createElement('li'); li.innerHTML = `<span class="name">${s.name}</span> <span class="score">${s.score}</span>`; highscoreList.appendChild(li); });
+        highscoreTable.style.display = 'block';
+    }
+
+    function drawPlayer() {
+        if (playerSpriteLoaded) {
+            ctx.drawImage(playerSprite, player.x, player.y, player.size, player.size);
+        } else {
+            ctx.fillStyle = "lime";
+            ctx.fillRect(player.x, player.y, player.size, player.size);
+        }
+        const barWidth = player.size, barHeight = 6, healthRatio = player.health / player.maxHealth;
+        ctx.fillStyle = "black"; ctx.fillRect(player.x, player.y - 10, barWidth, barHeight);
+        ctx.fillStyle = "green"; ctx.fillRect(player.x, player.y - 10, barWidth * healthRatio, barHeight);
+    }
+    
+    function drawBoss() {
+        if (bossSpriteLoaded) {
+            ctx.drawImage(bossSprite, boss.x, boss.y, boss.width, boss.height);
+        } else {
+            ctx.fillStyle = "red";
+            ctx.fillRect(boss.x, boss.y, boss.width, boss.height);
+        }
+      const barWidth = boss.width, barHeight = 8, healthRatio = boss.health / boss.maxHealth;
+      ctx.fillStyle = "black"; ctx.fillRect(boss.x, boss.y - 12, barWidth, barHeight);
+      ctx.fillStyle = "green"; ctx.fillRect(boss.x, boss.y - 12, barWidth * healthRatio, barHeight);
+    }
+    function drawProjectiles() {
+      ctx.fillStyle = "orange"; bossProjectiles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); });
+      ctx.fillStyle = "cyan"; playerBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill(); });
+      ctx.fillStyle = "pink"; minionProjectiles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); });
+    }
+    function drawMinions() { ctx.fillStyle = "darkred"; minions.forEach(m => { ctx.fillRect(m.x, m.y, m.size, m.size); }); }
+    function drawExplosions() { explosions.forEach(e => { ctx.fillStyle = `rgba(255,165,0,${e.alpha})`; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.fill(); }); }
+    
+    function updateExplosions() { for (let i = explosions.length - 1; i >= 0; i--) { explosions[i].radius += 2; explosions[i].alpha -= 0.05; if (explosions[i].alpha <= 0) explosions.splice(i, 1); } }
+    
+    function checkPlayerDamage(damage) {
+        player.health -= damage;
+        if (player.health <= 0 && !isGameOver) { saveAndShowScores(); }
+    }
+
+    function updateBossProjectiles() {
+      for (let i = bossProjectiles.length - 1; i >= 0; i--) {
+        const p = bossProjectiles[i]; p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) { bossProjectiles.splice(i, 1); continue; }
+        const dx = p.x - (player.x + player.size / 2), dy = p.y - (player.y + player.size / 2);
+        if (Math.sqrt(dx * dx + dy * dy) < p.radius + player.size / 2) { checkPlayerDamage(10); bossProjectiles.splice(i, 1); }
+      }
+    }
+    function updateMinionProjectiles() {
+        for (let i = minionProjectiles.length - 1; i >= 0; i--) {
+            const p = minionProjectiles[i]; p.y += p.speed;
+            if (p.y > canvas.height) { minionProjectiles.splice(i, 1); continue; }
+            const dx = p.x - (player.x + player.size / 2), dy = p.y - (player.y + player.size / 2);
+            if (Math.sqrt(dx * dx + dy * dy) < p.radius + player.size / 2) { checkPlayerDamage(5); minionProjectiles.splice(i, 1); }
+        }
+    }
+    function updateMinions() {
+      for (let i = minions.length - 1; i >= 0; i--) {
+        const m = minions[i]; m.x += m.vx; if (m.x <= 0 || m.x + m.size >= canvas.width) { m.vx *= -1; }
+        if (m.x < player.x + player.size && m.x + m.size > player.x && m.y < player.y + player.size && m.y + m.size > player.y) { checkPlayerDamage(5); minions.splice(i, 1); continue; }
+        for (let j = playerBullets.length - 1; j >= 0; j--) {
+          const b = playerBullets[j];
+          if (b.x > m.x && b.x < m.x + m.size && b.y > m.y && b.y < m.y + m.size) {
+            m.health -= player.damage; playerBullets.splice(j, 1);
+            if (m.health <= 0) {
+              minions.splice(i, 1); score += 50; coins += 0.5;
+              break;
+            }
+          }
+        }
+      }
+    }
+    function updatePlayerBullets() {
+      for (let i = playerBullets.length - 1; i >= 0; i--) {
+        const b = playerBullets[i]; b.y -= b.speed;
+        if (b.y < 0) { playerBullets.splice(i, 1); continue; }
+        if (b.x > boss.x && b.x < boss.x + boss.width && b.y > boss.y && b.y < boss.y + boss.height) {
+          boss.health -= player.damage; playerBullets.splice(i, 1);
+          if (boss.health <= 0) {
+            explosions.push({ x: boss.x + boss.width / 2, y: boss.y + boss.height / 2, radius: 10, alpha: 1 });
+            explosionSound.currentTime = 0; // --- NUEVO: Sonido de explosión ---
+            explosionSound.play();
+            coins++; score += 1000 * level; level++; upgradeBoss();
+          }
+        }
+      }
+    }
+
+    function upgradeBoss() {
+      boss.health = 100 + level * 75; boss.maxHealth = boss.health;
+      boss.speed += 0.5; boss.shootInterval = Math.max(250, boss.shootInterval - 100);
+      boss.x = Math.random() * (canvas.width - boss.width);
+    }
+
+    function shootFromBoss() {
+      const now = Date.now();
+      if (now - boss.lastShot > boss.shootInterval) {
+        const bx = boss.x + boss.width / 2, by = boss.y + boss.height, speed = 4 + level * 0.5;
+        if (level >= 3) {
+            for (let i = -1; i <= 1; i++) {
+                const angle = Math.atan2(player.y - by, player.x - bx) + (i * 0.25);
+                bossProjectiles.push({ x: bx, y: by, radius: 8, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed });
+            }
+        } else {
+             const angle = Math.atan2(player.y - by, player.x - bx);
+             bossProjectiles.push({ x: bx, y: by, radius: 10, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed });
+        }
+        boss.lastShot = now;
+      }
+    }
+    
+    function updateMinionShooting() { minions.forEach(m => { if(Date.now() - m.lastShot > m.shootInterval) { minionProjectiles.push({ x: m.x + m.size / 2, y: m.y + m.size, radius: 4, speed: 4 }); m.lastShot = Date.now(); } }); }
+    function spawnMinion() { minions.push({ x: Math.random() * (canvas.width - 25), y: 100, size: 25, vx: (Math.random() < 0.5 ? -1 : 1) * (1 + level * 0.1), health: 10 + level * 5, shootInterval: 2500, lastShot: Date.now() }); }
+    
+    function autoShootPlayer() {
+        if (Date.now() - player.lastShot > player.shootInterval) {
+            playerBullets.push({ x: player.x + player.size / 2, y: player.y, radius: 6, speed: 8 });
+            shootSound.currentTime = 0; // --- NUEVO: Sonido de disparo ---
+            shootSound.play();
+            player.lastShot = Date.now();
+        }
+    }
+    function moveBossTowardPlayer() {
+      const targetX = player.x + player.size / 2, bossCenterX = boss.x + boss.width / 2;
+      if (targetX < bossCenterX) boss.x -= boss.speed; else if (targetX > bossCenterX) boss.x += boss.speed;
+      boss.x = Math.max(0, Math.min(canvas.width - boss.width, boss.x));
+      if (Math.random() < 0.01 + level * 0.001 && minions.length < 5) { spawnMinion(); }
+    }
+
+    let direction = null;
+    function movePlayer() {
+      if (direction === "up" && player.y > 0) player.y -= player.speed;
+      if (direction === "down" && player.y + player.size < canvas.height) player.y += player.speed;
+      if (direction === "left" && player.x > 0) player.x -= player.speed;
+      if (direction === "right" && player.x + player.size < canvas.width) player.x += player.speed;
+    }
+
+    let isDragging = false, dragOffsetX = 0, dragOffsetY = 0;
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); const t=e.touches[0]; if (t.clientX>player.x && t.clientX<player.x+player.size && t.clientY>player.y && t.clientY<player.y+player.size) { isDragging = true; dragOffsetX = t.clientX-player.x; dragOffsetY = t.clientY-player.y; } }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (isDragging) { const t=e.touches[0]; player.x = Math.max(0, Math.min(canvas.width-player.size, t.clientX-dragOffsetX)); player.y = Math.max(0, Math.min(canvas.height-player.size, t.clientY-dragOffsetY)); } }, { passive: false });
+    canvas.addEventListener('touchend', () => { isDragging = false; });
+    
+    window.addEventListener("keydown", (e) => {
+      switch (e.key) {
+        case "ArrowUp": direction = "up"; break;
+        case "ArrowDown": direction = "down"; break;
+        case "ArrowLeft": direction = "left"; break;
+        case "ArrowRight": direction = "right"; break;
+      }
+    });
+    window.addEventListener("keyup", (e) => {
+      if ((e.key === "ArrowUp" && direction === "up") || (e.key === "ArrowDown" && direction === "down") || (e.key === "ArrowLeft" && direction === "left") || (e.key === "ArrowRight" && direction === "right")) {
+        direction = null;
+      }
+    });
+
+    function resetGame() {
+        isGameOver = false; isGamePaused = false;
+        level = 1; coins = 0; score = 0;
+        player = {
+            x: canvas.width / 2 - playerDefaults.size / 2, y: canvas.height - 100,
+            health: 100, maxHealth: 100, lastShot: 0,
+            ...playerDefaults
+        };
+        boss.speed = 2; boss.shootInterval = 1000;
+        [bossProjectiles, playerBullets, minions, minionProjectiles, explosions].forEach(arr => arr.length = 0);
+        upgradeBoss();
+    }
+
+    function gameLoop() {
+      requestAnimationFrame(gameLoop);
+      if (isGamePaused || isGameOver) return;
+      
+      score++;
+
+      updateStars();
+      movePlayer();
+      moveBossTowardPlayer();
+      autoShootPlayer();
+      updatePlayerBullets();
+      updateBossProjectiles();
+      updateMinions();
+      updateMinionShooting();
+      updateMinionProjectiles();
+      updateExplosions();
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawStars();
+      drawPlayer();
+      drawBoss();
+      drawProjectiles();
+      drawMinions();
+      drawExplosions();
+
+      ctx.fillStyle = "white"; ctx.font = "18px Arial";
+      ctx.fillText(`Puntuación: ${score}`, 10, 25);
+      ctx.fillText(`Nivel: ${level}`, 10, 50);
+      ctx.fillText(`Monedas: ${coins.toFixed(1)}`, 10, 75);
+    }
+    
+    initializeHighScores();
+    createStars();
+    resetGame();
+    gameLoop();
+  </script>
+</body>
+</html>
