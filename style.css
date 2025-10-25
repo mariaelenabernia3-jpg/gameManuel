@@ -1,93 +1,71 @@
-html, body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background: #000;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@800&display=swap');
+
+body {
+    margin: 0;
+    font-family: 'Montserrat', sans-serif;
+    background-color: #181818;
+    color: #ffffff;
+    overflow: hidden;
 }
-canvas {
-  display: block;
-  background: #000;
-  cursor: none;
-}
-.hud-button {
-    position: fixed;
-    padding: 10px 15px;
-    font-size: 16px;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    z-index: 20;
-}
-#upgradeBtn {
-    top: 10px;
-    right: 10px;
-    background-color: #007BFF;
-}
-.modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 320px;
-    background-color: rgba(20, 20, 40, 0.95);
-    color: white;
-    border: 2px solid #007BFF;
-    border-radius: 10px;
-    padding: 20px;
-    z-index: 30;
-    display: none;
+
+.screen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     text-align: center;
+    padding: 0 1rem;
+    box-sizing: border-box;
+    height: 100vh;
+    width: 100%;
+    position: absolute;
+    top: 0; left: 0;
+    transition: opacity 1.5s ease-in-out;
 }
-.modal h2, .modal h3 { margin-top: 0; }
-.modal button {
-    padding: 12px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer;
-    color: white; width: 100%; margin-top: 10px;
-}
-#upgrade-menu .coin-display { margin-bottom: 20px; font-size: 1.2em; color: #FFD700; }
-#upgrade-menu .upgrade-option { display: flex; flex-direction: column; margin-bottom: 15px; }
-#upgrade-menu .upgrade-option span { font-size: 0.9em; text-align: center; margin-bottom: 5px; color: #ccc; }
-#upgrade-menu .upgrade-button { background-color: #0056b3; }
-#upgrade-menu .upgrade-button:hover { background-color: #003d82; }
-#close-menu-btn { background-color: #6c757d; }
 
-#highscore-table h3 { color: #FFD700; }
-#highscore-list { list-style-position: inside; text-align: left; list-style: none; padding: 0; }
-#highscore-list li { display: flex; justify-content: space-between; padding: 8px 12px; margin-bottom: 5px; background: rgba(255,255,255,0.1); border-radius: 4px; }
-#highscore-list li .name { font-weight: bold; }
-#highscore-list li .score { color: #FFD700; }
-#play-again-btn { background-color: #28a745; }
+.hidden { opacity: 0; pointer-events: none; }
+.visible { opacity: 1; }
 
-#start-menu { display: block; }
-#start-menu button { background-color: #17a2b8; }
-#start-menu p { font-size: 0.9em; color: #ccc; margin-top: 20px; }
+/* --- PANTALLA 1: LOGO "DZM STUDIOS" --- */
+.logo {
+    font-size: 6rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #dddddd;
+    animation: revealLogo 4s ease-out forwards;
+}
+@keyframes revealLogo {
+    0% { opacity: 0; text-shadow: 0 0 20px rgba(0,0,0,0.8); transform: scale(1.05); }
+    50% { opacity: 0.7; text-shadow: 0 0 5px rgba(255,255,255,0.4); }
+    100% { opacity: 1; text-shadow: 0 0 15px rgba(255,255,255,0.6); transform: scale(1); }
+}
 
-#pause-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.7); z-index: 25; display: none;
-    color: white; font-size: 48px; text-align: center; line-height: 100vh;
-}
-#special-meter-container {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    width: 300px; height: 20px; background: #555; border-radius: 10px;
-    border: 2px solid #fff; z-index: 15;
-}
-#special-meter-bar {
-    width: 0%; height: 100%; background: linear-gradient(90deg, #ff00ff, #00ffff);
-    border-radius: 8px; transition: width 0.2s;
-}
-#laserBtn {
-    position: fixed;
-    bottom: 50px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 150px;
-    padding: 15px;
-    font-size: 18px;
-    font-weight: bold;
-    background: linear-gradient(90deg, #ff00ff, #00ffff);
-    border: 2px solid white;
-    text-shadow: 1px 1px 2px black;
-    display: none;
+/* --- PANTALLA 2: TECNOLOGÍAS --- */
+#tech-screen { background-color: #1a1a1a; }
+.tech-container { display: flex; flex-wrap: wrap; justify-content: center; font-size: 2.5rem; margin-top: 1rem; }
+@keyframes fadeInSlow { from { opacity: 0; } to { opacity: 1; } }
+.tech-text, .tech-item, .tech-separator { opacity: 0; animation: fadeInSlow 2s forwards; }
+.tech-text { animation-delay: 0.5s; font-size: 1.5rem; color: #cccccc; text-shadow: 0 0 5px rgba(255,255,255,0.3); }
+.html { animation-delay: 1.5s; color: #E44D26; text-shadow: 0 0 10px #E44D26; }
+.css { animation-delay: 2.0s; color: #264DE4; text-shadow: 0 0 10px #264DE4; }
+.js { animation-delay: 2.5s; color: #F0DB4F; text-shadow: 0 0 10px #F0DB4F; }
+.tech-separator { animation-duration: 1.5s; animation-delay: 3.0s; margin: 0 1rem; color: #555; font-weight: normal; }
+
+
+/* --- MEDIA QUERY PARA DISPOSITIVOS MÓVILES --- */
+@media (max-width: 768px) {
+    .logo {
+        font-size: 3.5rem;
+        letter-spacing: 1px;
+    }
+    .tech-text {
+        font-size: 1.2rem;
+    }
+    .tech-container {
+        font-size: 2rem;
+    }
+    .tech-separator {
+        margin: 0 0.5rem;
+    }
 }

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AceCraft Evolution</title>
+  <link rel="stylesheet" href="game.css">
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- --- MENÚ DE INICIO / SELECCIÓN DE DIFICULTAD --- -->
+  <div id="start-menu" class="modal">
+    <h2>Preparando Misión</h2>
+    <h3>Selecciona la Dificultad</h3>
+    <button id="easyBtn">Fácil</button>
+    <button id="normalBtn">Normal</button>
+    <button id="hardBtn">Difícil</button>
+    <button id="back-to-menu-btn" class="secondary-button">Volver al Hangar</button>
+  </div>
+
+  <!-- --- NOTIFICACIÓN DE LOGRO --- -->
+  <div id="achievement-toast"></div>
+
+  <!-- --- INTERFAZ DEL JUEGO --- -->
+  <div id="special-meter-container">
+      <div id="special-meter-bar"></div>
+  </div>
+  <button id="laserBtn" class="hud-button">⚡ LÁSER ⚡</button>
+
+  <!-- --- PANTALLA DE FIN DE JUEGO (AHORA SE MOSTRARÁ) --- -->
+  <div id="highscore-table" class="modal">
+      <h2>Fin de la Misión</h2>
+      <h3>Mejores Puntuaciones</h3>
+      <ol id="highscore-list"></ol>
+      <button id="back-to-menu-from-scores-btn">Volver al Menú</button>
+  </div>
+
+  <script src="game.js" defer></script>
+</body>
+</html>

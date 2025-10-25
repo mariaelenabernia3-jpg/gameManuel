@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AceCraft Evolution - Menú</title>
+    <link rel="stylesheet" href="menu_style.css">
+</head>
+<body>
+    <canvas id="starfield-canvas"></canvas>
+
+    <div class="menu-container">
+        <h1 class="game-title">AceCraft Evolution</h1>
+        <div class="currency-display">Créditos: <span id="total-currency-display">0</span></div>
+        <div class="button-container">
+            <button id="new-game-btn" class="menu-button">Lanzar Misión</button>
+            <button id="hangar-btn" class="menu-button">Hangar</button>
+            <button id="achievements-btn" class="menu-button">Logros</button>
+            <button id="credits-btn" class="menu-button">Créditos</button>
+        </div>
+    </div>
+
+    <!-- Modal del Hangar -->
+    <div id="hangar-modal" class="modal hidden">
+        <button id="close-hangar-cross-btn" class="modal-close-cross">&times;</button>
+        <h2>Hangar de Naves</h2>
+        <div id="ship-selection-container">
+            <!-- Las naves se insertarán aquí con JS -->
+        </div>
+        <button id="close-hangar-btn" class="modal-close-btn">Cerrar Hangar</button>
+    </div>
+
+    <!-- Modal de Logros -->
+    <div id="achievements-modal" class="modal hidden">
+        <h2>Logros</h2>
+        <ul id="achievements-list"></ul>
+        <button id="close-achievements-btn" class="modal-close-btn">Volver</button>
+    </div>
+
+    <!-- Modal de Créditos -->
+    <div id="credits-modal" class="modal hidden">
+        <h2>Créditos</h2>
+        <p>Un juego creado por</p>
+        <p class="credits-name">DZM STUDIOS</p>
+        <button id="close-credits-btn" class="modal-close-btn">Volver</button>
+    </div>
+
+    <script src="menu.js"></script>
+</body>
+</html>

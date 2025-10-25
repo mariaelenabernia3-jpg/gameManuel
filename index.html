@@ -1,59 +1,32 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AceCraft Evolution</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DZM Studios - Intro</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
 
-  <button id="upgradeBtn" class="hud-button">Mejoras ⬆️</button>
-  
-  <div id="special-meter-container">
-      <div id="special-meter-bar"></div>
-  </div>
+    <!-- Pantalla 1: Logo del Estudio -->
+    <div id="splash-screen" class="screen visible">
+        <h1 class="logo">DZM Studios</h1>
+    </div>
 
-  <button id="laserBtn" class="hud-button">⚡ LÁSER ⚡</button>
+    <!-- Pantalla 2: Tecnologías -->
+    <div id="tech-screen" class="screen hidden">
+        <p class="tech-text">Creado con</p>
+        <div class="tech-container">
+            <span class="tech-item html">HTML</span>
+            <span class="tech-separator">|</span>
+            <span class="tech-item css">CSS</span>
+            <span class="tech-separator">|</span>
+            <span class="tech-item js">JavaScript</span>
+        </div>
+    </div>
 
-  <div id="pause-overlay">JUEGO PAUSADO</div>
+    <!-- El script que controla la secuencia -->
+    <script src="intro.js"></script>
 
-  <div id="start-menu" class="modal">
-    <h2>AceCraft Evolution</h2>
-    <h3>Selecciona la Dificultad</h3>
-    <button id="easyBtn">Fácil</button>
-    <button id="normalBtn">Normal</button>
-    <button id="hardBtn">Difícil</button>
-    <!-- MODIFICADO: Añadido el control de la tecla 'E' -->
-    <p>Controles: Flechas/Ratón/Táctil, P(Pausa), E(Mejoras), Espacio(Láser).</p>
-  </div>
-
-  <div id="upgrade-menu" class="modal">
-      <h2>Tienda de Mejoras</h2>
-      <div class="coin-display">Monedas: <span id="coin-count">0</span></div>
-      <div class="upgrade-option">
-          <span id="speed-stat"></span>
-          <button class="upgrade-button" id="upgrade-speed-btn">Mejorar Velocidad (Costo: 2)</button>
-      </div>
-      <div class="upgrade-option">
-          <span id="damage-stat"></span>
-          <button class="upgrade-button" id="upgrade-damage-btn">Mejorar Daño (Costo: 3)</button>
-      </div>
-      <div class="upgrade-option">
-          <span id="firerate-stat"></span>
-          <button class="upgrade-button" id="upgrade-firerate-btn">Mejorar Cadencia (Costo: 4)</button>
-      </div>
-      <button id="close-menu-btn">Continuar</button>
-  </div>
-
-  <div id="highscore-table" class="modal">
-      <h2>Fin del Juego</h2>
-      <h3>Mejores Puntuaciones</h3>
-      <ol id="highscore-list"></ol>
-      <button id="play-again-btn">Jugar de Nuevo</button>
-  </div>
-
-  <script src="script.js" defer></script>
 </body>
 </html>
