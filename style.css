@@ -1,0 +1,93 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+canvas {
+  display: block;
+  background: #000;
+  cursor: none;
+}
+.hud-button {
+    position: fixed;
+    padding: 10px 15px;
+    font-size: 16px;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    z-index: 20;
+}
+#upgradeBtn {
+    top: 10px;
+    right: 10px;
+    background-color: #007BFF;
+}
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 320px;
+    background-color: rgba(20, 20, 40, 0.95);
+    color: white;
+    border: 2px solid #007BFF;
+    border-radius: 10px;
+    padding: 20px;
+    z-index: 30;
+    display: none;
+    text-align: center;
+}
+.modal h2, .modal h3 { margin-top: 0; }
+.modal button {
+    padding: 12px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer;
+    color: white; width: 100%; margin-top: 10px;
+}
+#upgrade-menu .coin-display { margin-bottom: 20px; font-size: 1.2em; color: #FFD700; }
+#upgrade-menu .upgrade-option { display: flex; flex-direction: column; margin-bottom: 15px; }
+#upgrade-menu .upgrade-option span { font-size: 0.9em; text-align: center; margin-bottom: 5px; color: #ccc; }
+#upgrade-menu .upgrade-button { background-color: #0056b3; }
+#upgrade-menu .upgrade-button:hover { background-color: #003d82; }
+#close-menu-btn { background-color: #6c757d; }
+
+#highscore-table h3 { color: #FFD700; }
+#highscore-list { list-style-position: inside; text-align: left; list-style: none; padding: 0; }
+#highscore-list li { display: flex; justify-content: space-between; padding: 8px 12px; margin-bottom: 5px; background: rgba(255,255,255,0.1); border-radius: 4px; }
+#highscore-list li .name { font-weight: bold; }
+#highscore-list li .score { color: #FFD700; }
+#play-again-btn { background-color: #28a745; }
+
+#start-menu { display: block; }
+#start-menu button { background-color: #17a2b8; }
+#start-menu p { font-size: 0.9em; color: #ccc; margin-top: 20px; }
+
+#pause-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7); z-index: 25; display: none;
+    color: white; font-size: 48px; text-align: center; line-height: 100vh;
+}
+#special-meter-container {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: 300px; height: 20px; background: #555; border-radius: 10px;
+    border: 2px solid #fff; z-index: 15;
+}
+#special-meter-bar {
+    width: 0%; height: 100%; background: linear-gradient(90deg, #ff00ff, #00ffff);
+    border-radius: 8px; transition: width 0.2s;
+}
+#laserBtn {
+    position: fixed;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 150px;
+    padding: 15px;
+    font-size: 18px;
+    font-weight: bold;
+    background: linear-gradient(90deg, #ff00ff, #00ffff);
+    border: 2px solid white;
+    text-shadow: 1px 1px 2px black;
+    display: none;
+}
