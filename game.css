@@ -1,6 +1,8 @@
 html, body {
   margin: 0; padding: 0; overflow: hidden;
   background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  /* Evitar el doble toque para hacer zoom en móviles */
+  touch-action: none;
 }
 canvas {
   display: block; background: #000; cursor: none;
@@ -14,7 +16,8 @@ canvas {
     transform: translate(-50%, -50%); width: 320px;
     background-color: rgba(20, 20, 40, 0.95); color: white;
     border: 2px solid #007BFF; border-radius: 10px; padding: 20px;
-    z-index: 30; text-align: center; display: none; /* Oculto por defecto */
+    z-index: 30; text-align: center; display: none;
+    box-sizing: border-box;
 }
 .modal h2, .modal h3 { margin-top: 0; }
 .modal button {
@@ -23,11 +26,9 @@ canvas {
 }
 .modal .secondary-button { background-color: #6c757d; }
 
-/* Menú de Dificultad al inicio */
 #start-menu { display: block; }
 #start-menu button { background-color: #17a2b8; }
 
-/* Tabla de Récords al final */
 #highscore-table h3 { color: #FFD700; }
 #highscore-list { list-style-position: inside; text-align: left; list-style: none; padding: 0; }
 #highscore-list li { display: flex; justify-content: space-between; padding: 8px 12px; margin-bottom: 5px; background: rgba(255,255,255,0.1); border-radius: 4px; }
@@ -35,8 +36,34 @@ canvas {
 #highscore-list li .score { color: #FFD700; }
 #back-to-menu-from-scores-btn { background-color: #28a745; }
 
-/* Interfaz en partida */
 #special-meter-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 300px; height: 20px; background: #555; border-radius: 10px; border: 2px solid #fff; z-index: 15; }
 #special-meter-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #ff00ff, #00ffff); border-radius: 8px; transition: width 0.2s; }
 #laserBtn { position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%); width: 150px; padding: 15px; font-size: 18px; font-weight: bold; background: linear-gradient(90deg, #ff00ff, #00ffff); border: 2px solid white; text-shadow: 1px 1px 2px black; display: none; }
 #achievement-toast { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background-color: #ffd700; color: black; padding: 15px 25px; border-radius: 10px; font-size: 1.2em; font-weight: bold; z-index: 100; transition: top 0.5s ease-in-out; }
+
+/* --- AJUSTES PARA MÓVILES --- */
+@media (max-width: 768px) {
+    /* Aumenta el tamaño de la fuente en la interfaz principal para mejor legibilidad */
+    .game-ui-text {
+        font-size: 22px !important;
+    }
+    
+    /* Hace el botón de láser y la barra de especial más grandes y accesibles */
+    #special-meter-container {
+        width: 80%;
+        max-width: 350px;
+        height: 25px;
+        bottom: 15px;
+    }
+    #laserBtn {
+        width: 180px;
+        padding: 20px;
+        font-size: 20px;
+        bottom: 50px;
+    }
+    
+    /* Asegura que los modales no sean demasiado anchos en pantallas pequeñas */
+    .modal {
+        width: 90%;
+    }
+}

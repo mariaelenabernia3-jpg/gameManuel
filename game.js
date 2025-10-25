@@ -44,19 +44,15 @@ function startGame(diffMult) {
     ui.startMenu.style.display = 'none';
     const savedProgress = localStorage.getItem(PLAYER_PROGRESS_KEY);
     const playerProgress = savedProgress ? JSON.parse(savedProgress) : { currency: 0, selectedShip: 'interceptor', unlockedShips: ['interceptor'], shipUpgrades: { 'interceptor': { damage: 0, firerate: 0 }, 'vanguard': { damage: 0, spread: 0 }, 'striker': { mainDamage: 0, sideDamage: 0 } } };
-    
     const selectedShipId = playerProgress.selectedShip || 'interceptor';
     const shipBaseStats = shipsData[selectedShipId];
     const shipUpgrades = playerProgress.shipUpgrades[selectedShipId];
-
     sprites.player = sprites.playerShips[selectedShipId];
-
     const finalStats = { ...shipBaseStats };
     if (selectedShipId === 'interceptor') { finalStats.damage = shipBaseStats.baseDamage + (shipUpgrades.damage * shipBaseStats.upgrades.damage.increment); finalStats.shootInterval = shipBaseStats.baseShootInterval + (shipUpgrades.firerate * shipBaseStats.upgrades.firerate.increment); }
     else if (selectedShipId === 'vanguard') { finalStats.damage = shipBaseStats.baseDamage + (shipUpgrades.damage * shipBaseStats.upgrades.damage.increment); finalStats.spreadAngle = 0.2 + (shipUpgrades.spread * shipBaseStats.upgrades.spread.increment); }
     else if (selectedShipId === 'striker') { finalStats.damage = shipBaseStats.baseDamage + (shipUpgrades.mainDamage * shipBaseStats.upgrades.mainDamage.increment); finalStats.sideDamage = 4 + (shipUpgrades.sideDamage * shipBaseStats.upgrades.sideDamage.increment); }
     finalStats.speed = shipBaseStats.baseSpeed;
-    
     resetGame(finalStats);
     gameLoop();
 }
@@ -80,7 +76,42 @@ canvas.addEventListener('mousemove', e => { activeControl = 'mouse'; mousePos.x 
 window.addEventListener("keydown", e => { const key = e.key.toLowerCase(); if (["arrowup", "w", "arrowdown", "s", "arrowleft", "a", "arrowright", "d"].includes(key)) { activeControl = 'keyboard'; } switch (key) { case "arrowup": case "w": direction = "up"; break; case "arrowdown": case "s": direction = "down"; break; case "arrowleft": case "a": direction = "left"; break; case "arrowright": case "d": direction = "right"; break; case " ": e.preventDefault(); fireLaser(); break; } });
 window.addEventListener("keyup", e => { switch(e.key.toLowerCase()){case "arrowup":case "w":if(direction==="up")direction=null;break;case "arrowdown":case "s":if(direction==="down")direction=null;break;case "arrowleft":case "a":if(direction==="left")direction=null;break;case "arrowright":case "d":if(direction==="right")direction=null;break;} });
 
-// --- Lógica de Juego Detallada (sin cambios)---
+// --- INICIO: CONTROLES TÁCTILES ---
+let isDragging = false;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+
+canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (isGameOver) return;
+    activeControl = 'touch';
+    const touch = e.touches[0];
+    // Comprobar si el toque está dentro de la nave
+    if (touch.clientX > player.x && touch.clientX < player.x + player.size &&
+        touch.clientY > player.y && touch.clientY < player.y + player.size) {
+        isDragging = true;
+        // Calcular el desfase entre el toque y la esquina superior izquierda de la nave
+        dragOffsetX = touch.clientX - player.x;
+        dragOffsetY = touch.clientY - player.y;
+    }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (isDragging) {
+        const touch = e.touches[0];
+        // Mover la nave manteniendo el desfase
+        player.x = touch.clientX - dragOffsetX;
+        player.y = touch.clientY - dragOffsetY;
+    }
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => {
+    isDragging = false;
+});
+// --- FIN: CONTROLES TÁCTILES ---
+
+// --- Lógica de Juego Detallada ---
 function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 function createStars() { stars = []; for (let i = 0; i < 100; i++) { stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5 }); } }
 function updateStars() { stars.forEach(s => { s.y += s.speed; if (s.y > canvas.height) { s.y = 0; s.x = Math.random() * canvas.width; } }); }
@@ -98,7 +129,7 @@ function moveBossTowardPlayer(){if(!boss||boss.health<=0)return;const t=player.x
 function updateMinionShooting(){entityArrays.minions.forEach(t=>{if(t.active&&Date.now()-t.lastShot>t.shootInterval){entityArrays.minionProjectiles.push({x:t.x+t.size/2,y:t.y+t.size,radius:5,speed:3*difficultyMultiplier,active:!0});t.lastShot=Date.now()}})}
 function shootFromBoss(){if(!boss||boss.health<=0||Date.now()-boss.lastShot<boss.shootInterval)return;boss.lastShot=Date.now();const t=boss.x+boss.width/2,e=boss.y+boss.height,a=4*difficultyMultiplier;switch(boss.attackPattern){case'burst':for(let r=-1;r<=1;r++){const s=Math.atan2(player.y-e,player.x+player.size/2-t)+.25*r;entityArrays.bossProjectiles.push({x:t,y:e,radius:8,vx:Math.cos(s)*a,vy:Math.sin(s)*a,active:!0})}break;case'spiral':for(let r=0;r<4;r++){const s=boss.spiralAngle+r*(Math.PI/2);entityArrays.bossProjectiles.push({x:t,y:e,radius:6,vx:Math.cos(s)*a,vy:Math.sin(s)*a,active:!0})}boss.spiralAngle+=.3;break;case'homing':const r=Math.atan2(player.y-e,player.x+player.size/2-t);entityArrays.bossProjectiles.push({x:t,y:e,radius:10,vx:Math.cos(r)*a,vy:Math.sin(r)*a,active:!0,homing:!0,homingDuration:Date.now()+2e3})}}
 function spawnMinion(){const t=boss.minionType;let e={x:Math.random()*(canvas.width-35),y:120,size:25,type:t,health:10,speedX:2,active:!0,lastShot:Date.now(),shootInterval:3e3};if(t==='fast'){e.size=20;e.health=5*difficultyMultiplier;e.speedX=4*difficultyMultiplier;e.shootInterval=2500}else if(t==='tank'){e.size=35;e.health=30*difficultyMultiplier;e.speedX=1*difficultyMultiplier;e.shootInterval=4e3;e.maxHealth=e.health}else{e.health*=difficultyMultiplier;e.speedX*=difficultyMultiplier}entityArrays.minions.push(e)}
-function updateEntities(){function t(t,e){if(!t||!e)return!1;let a=t.x,r=t.y;if(t.x<e.x)a=e.x;else if(t.x>e.x+(e.size||e.width))a=e.x+(e.size||e.width);if(t.y<e.y)r=e.y;else if(t.y>e.y+(e.size||e.height))r=e.y+(e.size||e.height);return Math.hypot(t.x-a,t.y-r)<=t.radius}entityArrays.bossProjectiles.forEach(e=>{if(e.homing&&Date.now()<e.homingDuration&&player){const t=Math.atan2(player.y+player.size/2-e.y,player.x+player.size/2-e.x),a=4*difficultyMultiplier;e.vx=Math.cos(t)*a;e.vy=Math.sin(t)*a}e.x+=e.vx;e.y+=e.vy;if(t(e,player)){checkPlayerDamage(10);e.active=!1}if(e.y>canvas.height+20||e.x<-20||e.x>canvas.width+20)e.active=!1});entityArrays.playerBullets.forEach(e=>{if(e.isSide){e.x+=Math.sin(e.angle)*e.speed}else{e.x+=Math.sin(e.angle)*e.speed;e.y-=Math.cos(e.angle)*e.speed}if(e.y<-20||e.y>canvas.height||e.x<-20||e.x>canvas.width+20)e.active=!1;if(boss.health>0&&t(e,boss)){boss.health-=e.damage;e.active=!1;increaseSpecialMeter(.5)}});entityArrays.minionProjectiles.forEach(e=>{e.y+=e.speed;if(t(e,player)){checkPlayerDamage(5);e.active=!1}if(e.y>canvas.height)e.active=!1});entityArrays.explosions.forEach(t=>{t.radius+=2;t.alpha-=.05;if(t.alpha<=0)t.active=!1});entityArrays.powerUps.forEach(t=>{t.y+=t.speed;if(player&&t.x<player.x+player.size&&t.x+t.size>player.x&&t.y<player.y+player.size&&t.y+t.size>player.y){activatePowerUp(t.type);t.active=!1}if(t.y>canvas.height)t.active=!1});entityArrays.minions.forEach(e=>{e.x+=e.speedX;if(e.x<=0||e.x+e.size>=canvas.width)e.speedX*=-1;entityArrays.playerBullets.forEach(a=>{if(a.active&&t(a,e)){e.health-=a.damage;a.active=!1;increaseSpecialMeter(1)}});if(e.health<=0){if(e.active){score+=50*combo.multiplier;coinsEarnedThisGame+=1;increaseCombo();minionsDestroyedInLevel++;if(minionsDestroyedInLevel>=100)unlockAchievement('minions100');}e.active=!1;if(Math.random()<.15)spawnPowerUp(e.x,e.y)}});if(boss.health<=0){entityArrays.explosions.push({x:boss.x+boss.width/2,y:boss.y+boss.height/2,radius:30,alpha:1,active:!0});playSound(sounds.explosion);coinsEarnedThisGame+=50;score+=1e3*level*combo.multiplier;if(damageTakenInLevel===0)unlockAchievement('noHitBoss');level++;if(level>=5)unlockAchievement('level5');increaseCombo();currentBossIndex=(currentBossIndex+1)%bosses.length;entityArrays.minions.forEach(t=>t.active=!1);entityArrays.bossProjectiles.forEach(t=>t.active=!1);entityArrays.minionProjectiles.forEach(t=>t.active=!1);loadNextBoss()}for(const a in entityArrays)entityArrays[a]=entityArrays[a].filter(t=>t.active)}
+function updateEntities(){function t(t,e){if(!t||!e)return!1;let a=t.x,r=t.y;if(t.x<e.x)a=e.x;else if(t.x>e.x+(e.size||e.width))a=e.x+(e.size||e.width);if(t.y<e.y)r=e.y;else if(t.y>e.y+(e.size||e.height))r=e.y+(e.size||e.height);return Math.hypot(t.x-a,t.y-r)<=t.radius}entityArrays.bossProjectiles.forEach(e=>{if(e.homing&&Date.now()<e.homingDuration&&player){const t=Math.atan2(player.y+player.size/2-e.y,player.x+player.size/2-e.x),a=4*difficultyMultiplier;e.vx=Math.cos(t)*a;e.vy=Math.sin(t)*a}e.x+=e.vx;e.y+=e.vy;if(t(e,player)){checkPlayerDamage(10);e.active=!1}if(e.y>canvas.height+20||e.x<-20||e.x>canvas.width+20)e.active=!1});entityArrays.playerBullets.forEach(e=>{if(e.isSide){e.x+=e.speed}else{e.x+=Math.sin(e.angle)*e.speed;e.y-=Math.cos(e.angle)*e.speed}if(e.y<-20||e.y>canvas.height||e.x<-20||e.x>canvas.width+20)e.active=!1;if(boss.health>0&&t(e,boss)){boss.health-=e.damage;e.active=!1;increaseSpecialMeter(.5)}});entityArrays.minionProjectiles.forEach(e=>{e.y+=e.speed;if(t(e,player)){checkPlayerDamage(5);e.active=!1}if(e.y>canvas.height)e.active=!1});entityArrays.explosions.forEach(t=>{t.radius+=2;t.alpha-=.05;if(t.alpha<=0)t.active=!1});entityArrays.powerUps.forEach(t=>{t.y+=t.speed;if(player&&t.x<player.x+player.size&&t.x+t.size>player.x&&t.y<player.y+player.size&&t.y+t.size>player.y){activatePowerUp(t.type);t.active=!1}if(t.y>canvas.height)t.active=!1});entityArrays.minions.forEach(e=>{e.x+=e.speedX;if(e.x<=0||e.x+e.size>=canvas.width)e.speedX*=-1;entityArrays.playerBullets.forEach(a=>{if(a.active&&t(a,e)){e.health-=a.damage;a.active=!1;increaseSpecialMeter(1)}});if(e.health<=0){if(e.active){score+=50*combo.multiplier;coinsEarnedThisGame+=1;increaseCombo();minionsDestroyedInLevel++;if(minionsDestroyedInLevel>=100)unlockAchievement('minions100');}e.active=!1;if(Math.random()<.15)spawnPowerUp(e.x,e.y)}});if(boss.health<=0){entityArrays.explosions.push({x:boss.x+boss.width/2,y:boss.y+boss.height/2,radius:30,alpha:1,active:!0});playSound(sounds.explosion);coinsEarnedThisGame+=50;score+=1e3*level*combo.multiplier;if(damageTakenInLevel===0)unlockAchievement('noHitBoss');level++;if(level>=5)unlockAchievement('level5');increaseCombo();currentBossIndex=(currentBossIndex+1)%bosses.length;entityArrays.minions.forEach(t=>t.active=!1);entityArrays.bossProjectiles.forEach(t=>t.active=!1);entityArrays.minionProjectiles.forEach(t=>t.active=!1);loadNextBoss()}for(const a in entityArrays)entityArrays[a]=entityArrays[a].filter(t=>t.active)}
 function drawPlayer(){if(Date.now()<player.shieldExpiresAt){ctx.fillStyle="rgba(0, 255, 255, 0.3)";ctx.beginPath();ctx.arc(player.x+player.size/2,player.y+player.size/2,player.size/1.5,0,2*Math.PI);ctx.fill();}if(sprites.player&&sprites.player.loaded){ctx.drawImage(sprites.player,player.x,player.y,player.size,player.size)}else{ctx.fillStyle='lime';ctx.fillRect(player.x,player.y,player.size,player.size)}const t=player.size,e=6,a=player.health/player.maxHealth;if(isNaN(a))return;ctx.fillStyle="#333";ctx.fillRect(player.x,player.y-12,t,e);ctx.fillStyle="#00ff00";ctx.fillRect(player.x,player.y-12,t*a,e)}
 function drawBoss(){if(!boss||isNaN(boss.x)||isNaN(boss.y))return;if(sprites.bosses[currentBossIndex]&&sprites.bosses[currentBossIndex].loaded){ctx.drawImage(sprites.bosses[currentBossIndex],boss.x,boss.y,boss.width,boss.height)}else{ctx.fillStyle='red';ctx.fillRect(boss.x,boss.y,boss.width,boss.height)}const t=boss.width,e=8,a=boss.health/boss.maxHealth;if(isNaN(a))return;ctx.fillStyle="#333";ctx.fillRect(boss.x,boss.y-14,t,e);ctx.fillStyle="#ff0000";ctx.fillRect(boss.x,boss.y-14,t*a,e)}
 function drawProjectiles(){entityArrays.bossProjectiles.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.fillStyle=t.homing&&Date.now()<t.homingDuration?"orange":"#FF00FF";ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()});ctx.fillStyle="cyan";entityArrays.playerBullets.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()});ctx.fillStyle="pink";entityArrays.minionProjectiles.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()})}
@@ -119,7 +150,6 @@ function saveAndShowScores() {
     const savedProgress = localStorage.getItem(PLAYER_PROGRESS_KEY);
     let playerProgress;
 
-    // Se usa un bloque try-catch para evitar errores si los datos guardados están corruptos.
     try {
         playerProgress = savedProgress ? JSON.parse(savedProgress) : null;
     } catch (error) {
@@ -128,23 +158,19 @@ function saveAndShowScores() {
     }
 
     if (!playerProgress) {
-        // Si no hay progreso o estaba corrupto, se crea uno desde cero.
         playerProgress = {
             currency: 0, selectedShip: 'interceptor', unlockedShips: ['interceptor'],
             shipUpgrades: { 'interceptor': { damage: 0, firerate: 0 }, 'vanguard': { damage: 0, spread: 0 }, 'striker': { mainDamage: 0, sideDamage: 0 } }
         };
     }
     
-    // Asegurarse de que la propiedad currency existe y es un número antes de sumar.
     if (typeof playerProgress.currency !== 'number' || isNaN(playerProgress.currency)) {
         playerProgress.currency = 0;
     }
     playerProgress.currency += Math.floor(coinsEarnedThisGame);
 
-    // Guardar el objeto de progreso actualizado.
     localStorage.setItem(PLAYER_PROGRESS_KEY, JSON.stringify(playerProgress));
     
-    // Pedir nombre y guardar puntuación
     const name = prompt("Fin de la Misión. Registra tu nombre de piloto:", "PILOTO");
     const newScore = { name: name || "PILOTO", score: score };
     const highScores = JSON.parse(localStorage.getItem(HIGH_SCORES_KEY));
@@ -153,7 +179,6 @@ function saveAndShowScores() {
     highScores.splice(5);
     localStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(highScores));
     
-    // Poblar y mostrar el modal de récords
     ui.highscoreList.innerHTML = '';
     highScores.forEach(scoreEntry => {
         const li = document.createElement('li');
