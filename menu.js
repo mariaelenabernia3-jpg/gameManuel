@@ -23,26 +23,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const PLAYER_PROGRESS_KEY = 'aceCraftPlayerProgress';
     let playerProgress;
 
-    /**
-     * CORRECCIÓN: Esta función ahora usa try-catch para evitar que un error en
-     * JSON.parse() detenga la ejecución de todo el script.
-     */
     function loadProgress() {
         const saved = localStorage.getItem(PLAYER_PROGRESS_KEY);
-        
         try {
             if (saved) {
                 playerProgress = JSON.parse(saved);
-                // Si los datos parseados no son un objeto válido, forzamos la creación de datos por defecto.
                 if (typeof playerProgress !== 'object' || playerProgress === null) {
                     throw new Error("Los datos guardados no son válidos.");
                 }
             } else {
-                 // Si no hay datos guardados, lanzamos un error para ir al bloque catch.
                 throw new Error("No hay progreso guardado.");
             }
         } catch (error) {
-            // Si el 'try' falla (por JSON corrupto o porque no había datos), creamos un estado inicial seguro.
             console.error("No se pudo cargar el progreso. Se usará el estado por defecto.", error);
             playerProgress = {
                 currency: 0,
@@ -55,15 +47,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
         }
-
-        // Nos aseguramos de que la moneda sea un número antes de mostrarla, por si los datos guardados están corruptos.
         if (typeof playerProgress.currency !== 'number' || isNaN(playerProgress.currency)) {
             playerProgress.currency = 0;
         }
-        
         document.getElementById('total-currency-display').textContent = playerProgress.currency;
     }
-
 
     function saveProgress() {
         localStorage.setItem(PLAYER_PROGRESS_KEY, JSON.stringify(playerProgress));
@@ -106,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    hangarBtn.addEventListener('click', () => { renderHangar(); hangarModal.classList.remove('hidden'); });
+    hangarBtn.addEventListener('click', () => { loadProgress(); renderHangar(); hangarModal.classList.remove('hidden'); });
     closeHangarBtn.addEventListener('click', () => hangarModal.classList.add('hidden'));
     closeHangarCrossBtn.addEventListener('click', () => hangarModal.classList.add('hidden'));
 
@@ -114,21 +102,80 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = e.target;
         const shipId = target.dataset.shipId;
         if (!shipId) return;
-        if (target.classList.contains('ship-action-btn')) {
-            if (target.classList.contains('buy-btn')) { const price = shipsData[shipId].price; if (playerProgress.currency >= price) { playerProgress.currency -= price; playerProgress.unlockedShips.push(shipId); saveProgress(); renderHangar(); } else { alert('Créditos insuficientes.'); } }
-            else if (target.classList.contains('select-btn')) { playerProgress.selectedShip = shipId; saveProgress(); renderHangar(); }
-        } else if (target.dataset.upgradeId) { const upgradeId = target.dataset.upgradeId; const upgradeData = shipsData[shipId].upgrades[upgradeId]; const currentLevel = playerProgress.shipUpgrades[shipId][upgradeId]; const cost = upgradeData.cost * (currentLevel + 1); if(playerProgress.currency >= cost) { playerProgress.currency -= cost; playerProgress.shipUpgrades[shipId][upgradeId]++; saveProgress(); renderHangar(); } else { alert('Créditos insuficientes.'); } }
+        if (target.classList.contains('buy-btn')) {
+            const price = shipsData[shipId].price;
+            if (playerProgress.currency >= price) {
+                playerProgress.currency -= price;
+                playerProgress.unlockedShips.push(shipId);
+                saveProgress();
+                renderHangar();
+            } else {
+                alert('Créditos insuficientes.');
+            }
+        } else if (target.classList.contains('select-btn')) {
+            playerProgress.selectedShip = shipId;
+            saveProgress();
+            renderHangar();
+        } else if (target.dataset.upgradeId) {
+            const upgradeId = target.dataset.upgradeId;
+            const upgradeData = shipsData[shipId].upgrades[upgradeId];
+            const currentLevel = playerProgress.shipUpgrades[shipId][upgradeId];
+            const cost = upgradeData.cost * (currentLevel + 1);
+            if(playerProgress.currency >= cost) {
+                playerProgress.currency -= cost;
+                playerProgress.shipUpgrades[shipId][upgradeId]++;
+                saveProgress();
+                renderHangar();
+            } else {
+                alert('Créditos insuficientes.');
+            }
+        }
     });
 
     // --- LÓGICA DE OTROS BOTONES ---
     document.getElementById('new-game-btn').addEventListener('click', () => { window.location.href = 'game.html'; });
-    const creditsBtn = document.getElementById('credits-btn'); const creditsModal = document.getElementById('credits-modal'); const closeCreditsBtn = document.getElementById('close-credits-btn');
-    creditsBtn.addEventListener('click', () => creditsModal.classList.remove('hidden')); closeCreditsBtn.addEventListener('click', () => creditsModal.classList.add('hidden'));
+    const creditsBtn = document.getElementById('credits-btn');
+    const creditsModal = document.getElementById('credits-modal');
+    const closeCreditsBtn = document.getElementById('close-credits-btn');
+    creditsBtn.addEventListener('click', () => creditsModal.classList.remove('hidden'));
+    closeCreditsBtn.addEventListener('click', () => creditsModal.classList.add('hidden'));
     
-    const achievementsBtn = document.getElementById('achievements-btn'); const achievementsModal = document.getElementById('achievements-modal'); const closeAchievementsBtn = document.getElementById('close-achievements-btn'); const ACHIEVEMENTS_KEY = 'aceCraftAchievements'; const achievementDefinitions = { 'level5': { title: "Superviviente Nato", description: "Alcanza el nivel 5." }, 'combo50': { title: "Maestro del Combo", description: "Alcanza un combo de 50." }, 'noHitBoss': { title: "Intocable", description: "Derrota a un jefe sin recibir daño." }, 'minions100': { title: "Aniquilador", description: "Destruye 100 secuaces en una partida." }, 'allPowerups': { title: "Coleccionista", description: "Usa todos los tipos de power-ups." } };
+    const achievementsBtn = document.getElementById('achievements-btn');
+    const achievementsModal = document.getElementById('achievements-modal');
+    const closeAchievementsBtn = document.getElementById('close-achievements-btn');
+    const ACHIEVEMENTS_KEY = 'aceCraftAchievements';
+
+    // Lista de logros actualizada para coincidir con el juego
+    const achievementDefinitions = {
+        'level5': { title: "Superviviente Nato", description: "Alcanza el nivel 5 en una partida." },
+        'combo50': { title: "Maestro del Combo", description: "Alcanza un combo de 50." },
+        'noHitBoss': { title: "Intocable", description: "Derrota a un jefe sin recibir daño." },
+        'minions100': { title: "Aniquilador", description: "Destruye 100 secuaces en una partida." },
+        'allPowerups': { title: "Coleccionista", description: "Usa todos los tipos de power-ups en una partida." },
+        'bossHunter': { title: "Cazador de Gigantes", description: "Derrota 3 jefes en una misma partida." },
+        'laserMaster': { title: "Poder Desatado", description: "Usa el Láser especial 5 veces en una partida." },
+        'closeCall': { title: "Al Filo de la Muerte", description: "Termina un nivel con menos del 10% de vida." },
+        'creditHoarder': { title: "Botín de Guerra", description: "Consigue 250 créditos en una sola misión." }
+    };
     
-    function populateAchievements() { const saved = localStorage.getItem(ACHIEVEMENTS_KEY); const savedAchievements = saved ? JSON.parse(saved) : {}; const list = document.getElementById('achievements-list'); list.innerHTML = ''; for (const id in achievementDefinitions) { const isUnlocked = savedAchievements[id] ? savedAchievements[id].unlocked : false; const item = achievementDefinitions[id]; const li = document.createElement('li'); li.textContent = `${item.title}: ${item.description}`; li.classList.add(isUnlocked ? 'unlocked' : 'locked'); list.appendChild(li); } }
-    achievementsBtn.addEventListener('click', () => { populateAchievements(); achievementsModal.classList.remove('hidden'); });
+    function populateAchievements() {
+        const saved = localStorage.getItem(ACHIEVEMENTS_KEY);
+        const savedAchievements = saved ? JSON.parse(saved) : {};
+        const list = document.getElementById('achievements-list');
+        list.innerHTML = '';
+        for (const id in achievementDefinitions) {
+            const isUnlocked = savedAchievements[id] ? savedAchievements[id].unlocked : false;
+            const item = achievementDefinitions[id];
+            const li = document.createElement('li');
+            li.innerHTML = `<strong>${item.title}:</strong> ${item.description}`;
+            li.classList.add(isUnlocked ? 'unlocked' : 'locked');
+            list.appendChild(li);
+        }
+    }
+    achievementsBtn.addEventListener('click', () => {
+        populateAchievements();
+        achievementsModal.classList.remove('hidden');
+    });
     closeAchievementsBtn.addEventListener('click', () => achievementsModal.classList.add('hidden'));
 
     // Carga inicial de datos del jugador
