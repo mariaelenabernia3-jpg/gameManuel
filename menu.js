@@ -23,12 +23,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const PLAYER_PROGRESS_KEY = 'aceCraftPlayerProgress';
     let playerProgress;
 
+    /**
+     * CORRECCIÓN: Esta función ahora usa try-catch para evitar que un error en
+     * JSON.parse() detenga la ejecución de todo el script.
+     */
     function loadProgress() {
         const saved = localStorage.getItem(PLAYER_PROGRESS_KEY);
-        if (saved) {
-            playerProgress = JSON.parse(saved);
-        } else {
-            // Estado inicial si no hay datos guardados
+        
+        try {
+            if (saved) {
+                playerProgress = JSON.parse(saved);
+                // Si los datos parseados no son un objeto válido, forzamos la creación de datos por defecto.
+                if (typeof playerProgress !== 'object' || playerProgress === null) {
+                    throw new Error("Los datos guardados no son válidos.");
+                }
+            } else {
+                 // Si no hay datos guardados, lanzamos un error para ir al bloque catch.
+                throw new Error("No hay progreso guardado.");
+            }
+        } catch (error) {
+            // Si el 'try' falla (por JSON corrupto o porque no había datos), creamos un estado inicial seguro.
+            console.error("No se pudo cargar el progreso. Se usará el estado por defecto.", error);
             playerProgress = {
                 currency: 0,
                 selectedShip: 'interceptor',
@@ -40,8 +55,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
         }
+
+        // Nos aseguramos de que la moneda sea un número antes de mostrarla, por si los datos guardados están corruptos.
+        if (typeof playerProgress.currency !== 'number' || isNaN(playerProgress.currency)) {
+            playerProgress.currency = 0;
+        }
+        
         document.getElementById('total-currency-display').textContent = playerProgress.currency;
     }
+
 
     function saveProgress() {
         localStorage.setItem(PLAYER_PROGRESS_KEY, JSON.stringify(playerProgress));

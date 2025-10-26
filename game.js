@@ -2,7 +2,7 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 // --- Variables de Estado del Juego ---
-let level, score, isGameOver, difficultyMultiplier, currentBossIndex, activeControl = 'none'; // --- CAMBIO CLAVE: Inicia sin control activo ---
+let level, score, isGameOver, difficultyMultiplier, currentBossIndex, activeControl = 'none';
 let stars = [];
 let combo = { count: 0, multiplier: 1, timer: 0 };
 const entityArrays = { bossProjectiles: [], playerBullets: [], explosions: [], minions: [], powerUps: [], minionProjectiles: [] };
@@ -34,7 +34,7 @@ const ui = { startMenu: document.getElementById('start-menu'), easyBtn: document
 
 // --- Lógica de Logros ---
 function saveAchievements() { const achievementsToSave = {}; for (const key in achievements) { achievementsToSave[key] = { unlocked: achievements[key].unlocked }; } localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(achievementsToSave)); }
-function loadAchievements() { const saved = localStorage.getItem(ACHIEVEMENTS_KEY); if (saved) { const savedAchievements = JSON.parse(saved); for (const key in savedAchievements) { if (achievements[key]) { achievements[key].unlocked = savedAchievements[key].unlocked; } } } }
+function loadAchievements() { const saved = localStorage.getItem(ACHIEVEMENTS_KEY); if (saved) { try { const savedAchievements = JSON.parse(saved); for (const key in savedAchievements) { if (achievements[key]) { achievements[key].unlocked = savedAchievements[key].unlocked; } } } catch(e) { console.error("Error al cargar logros", e); } } }
 function showAchievementToast(title) { ui.achievementToast.textContent = `¡Logro Desbloqueado: ${title}!`; ui.achievementToast.style.top = '20px'; setTimeout(() => { ui.achievementToast.style.top = '-100px'; }, 4000); }
 function unlockAchievement(id) { if (achievements[id] && !achievements[id].unlocked) { achievements[id].unlocked = true; showAchievementToast(achievements[id].title); saveAchievements(); } }
 
@@ -49,10 +49,28 @@ function startGame(diffMult) {
     const shipBaseStats = shipsData[selectedShipId];
     const shipUpgrades = playerProgress.shipUpgrades[selectedShipId];
     sprites.player = sprites.playerShips[selectedShipId];
+    
+    // Copia las estadísticas base
     const finalStats = { ...shipBaseStats };
-    if (selectedShipId === 'interceptor') { finalStats.damage = shipBaseStats.baseDamage + (shipUpgrades.damage * shipBaseStats.upgrades.damage.increment); finalStats.shootInterval = shipBaseStats.baseShootInterval + (shipUpgrades.firerate * shipBaseStats.upgrades.firerate.increment); }
-    else if (selectedShipId === 'vanguard') { finalStats.damage = shipBaseStats.baseDamage + (shipUpgrades.damage * shipBaseStats.upgrades.damage.increment); finalStats.spreadAngle = 0.2 + (shipUpgrades.spread * shipBaseStats.upgrades.spread.increment); }
-    else if (selectedShipId === 'striker') { finalStats.damage = shipBaseStats.baseDamage + (shipUpgrades.mainDamage * shipBaseStats.upgrades.mainDamage.increment); finalStats.sideDamage = 4 + (shipUpgrades.sideDamage * shipBaseStats.upgrades.sideDamage.increment); }
+    
+    // --- INICIO DE LA CORRECCIÓN ---
+    // Aplica las mejoras específicas de cada nave
+    if (selectedShipId === 'interceptor') {
+        finalStats.damage = shipBaseStats.baseDamage + (shipUpgrades.damage * shipBaseStats.upgrades.damage.increment);
+        finalStats.shootInterval = shipBaseStats.baseShootInterval + (shipUpgrades.firerate * shipBaseStats.upgrades.firerate.increment);
+    } else if (selectedShipId === 'vanguard') {
+        finalStats.damage = shipBaseStats.baseDamage + (shipUpgrades.damage * shipBaseStats.upgrades.damage.increment);
+        finalStats.spreadAngle = 0.2 + (shipUpgrades.spread * shipBaseStats.upgrades.spread.increment);
+        // Asigna el intervalo de disparo base, ya que no tiene mejora de cadencia
+        finalStats.shootInterval = shipBaseStats.baseShootInterval;
+    } else if (selectedShipId === 'striker') {
+        finalStats.damage = shipBaseStats.baseDamage + (shipUpgrades.mainDamage * shipBaseStats.upgrades.mainDamage.increment);
+        finalStats.sideDamage = 4 + (shipUpgrades.sideDamage * shipBaseStats.upgrades.sideDamage.increment);
+        // Asigna el intervalo de disparo base, ya que no tiene mejora de cadencia
+        finalStats.shootInterval = shipBaseStats.baseShootInterval;
+    }
+    // --- FIN DE LA CORRECCIÓN ---
+
     finalStats.speed = shipBaseStats.baseSpeed;
     
     resetGame(finalStats);
@@ -88,7 +106,38 @@ function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = wind
 function createStars() { stars = []; for (let i = 0; i < 100; i++) { stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5 }); } }
 function updateStars() { stars.forEach(s => { s.y += s.speed; if (s.y > canvas.height) { s.y = 0; s.x = Math.random() * canvas.width; } }); }
 function handleControls() { if (!player) return; if (activeControl === 'mouse') { player.x = mousePos.x - player.size / 2; player.y = mousePos.y - player.size / 2; } else if (activeControl === 'keyboard') { if (direction === "up" && player.y > 0) player.y -= player.speed; if (direction === "down" && player.y + player.size < canvas.height) player.y += player.speed; if (direction === "left" && player.x > 0) player.x -= player.speed; if (direction === "right" && player.x + player.size < canvas.width) player.x += player.speed; } player.x = Math.max(0, Math.min(canvas.width - player.size, player.x)); player.y = Math.max(0, Math.min(canvas.height - player.size, player.y)); }
-function autoShootPlayer() { if (Date.now() - player.lastShot > player.shootInterval && !player.isFiringLaser) { playSound(sounds.shoot); const centerX = player.x + player.size / 2; const tripleShotActive = Date.now() < player.tripleShotExpiresAt; if (tripleShotActive) { for (let i = -1; i <= 1; i++) entityArrays.playerBullets.push({ x: centerX, y: player.y, radius: 6, speed: 8, damage: player.damage, angle: 0.2 * i, active: true }); } else { switch(player.firePattern) { case 'single': entityArrays.playerBullets.push({ x: centerX, y: player.y, radius: 6, speed: 8, damage: player.damage, angle: 0, active: true }); break; case 'spread': for (let i = -1; i <= 1; i++) entityArrays.playerBullets.push({ x: centerX, y: player.y, radius: 5, speed: 7, damage: player.damage, angle: player.spreadAngle * i, active: true }); break; case 'side': entityArrays.playerBullets.push({ x: centerX, y: player.y, radius: 7, speed: 8, damage: player.damage, angle: 0, active: true }); entityArrays.playerBullets.push({ x: player.x, y: player.y + 20, radius: 4, speed: 6, damage: player.sideDamage, isSide: true, active: true }); entityArrays.playerBullets.push({ x: player.x + player.size, y: player.y + 20, radius: 4, speed: 6, damage: player.sideDamage, isSide: true, active: true }); break; } } player.lastShot = Date.now(); } }
+
+// --- INICIO CORRECCIÓN DISPARO STRIKER ---
+function autoShootPlayer() {
+    if (Date.now() - player.lastShot > player.shootInterval && !player.isFiringLaser) {
+        playSound(sounds.shoot);
+        const centerX = player.x + player.size / 2;
+        const tripleShotActive = Date.now() < player.tripleShotExpiresAt;
+        if (tripleShotActive) {
+            for (let i = -1; i <= 1; i++) entityArrays.playerBullets.push({ x: centerX, y: player.y, radius: 6, speed: 8, damage: player.damage, angle: 0.2 * i, active: true });
+        } else {
+            switch(player.firePattern) {
+                case 'single':
+                    entityArrays.playerBullets.push({ x: centerX, y: player.y, radius: 6, speed: 8, damage: player.damage, angle: 0, active: true });
+                    break;
+                case 'spread':
+                    for (let i = -1; i <= 1; i++) entityArrays.playerBullets.push({ x: centerX, y: player.y, radius: 5, speed: 7, damage: player.damage, angle: player.spreadAngle * i, active: true });
+                    break;
+                case 'side':
+                    // Proyectil central
+                    entityArrays.playerBullets.push({ x: centerX, y: player.y, radius: 7, speed: 8, damage: player.damage, angle: 0, active: true });
+                    // Proyectil lateral izquierdo (se mueve a la izquierda)
+                    entityArrays.playerBullets.push({ x: player.x, y: player.y + 20, radius: 4, speed: 6, damage: player.sideDamage, isSide: true, direction: -1, active: true });
+                    // Proyectil lateral derecho (se mueve a la derecha)
+                    entityArrays.playerBullets.push({ x: player.x + player.size, y: player.y + 20, radius: 4, speed: 6, damage: player.sideDamage, isSide: true, direction: 1, active: true });
+                    break;
+            }
+        }
+        player.lastShot = Date.now();
+    }
+}
+// --- FIN CORRECCIÓN DISPARO STRIKER ---
+
 function checkPlayerDamage(t) { if (!(Date.now() < player.shieldExpiresAt)) { player.health -= t; damageTakenInLevel += t; if (player.health <= 0 && !isGameOver) saveAndShowScores() } }
 function increaseCombo() { combo.count++; combo.timer = 3; combo.multiplier = 1 + Math.floor(combo.count / 5); if (combo.count >= 50) unlockAchievement('combo50') }
 function updatePlayerState(t) { if (combo.timer > 0) { combo.timer -= t; if (combo.timer <= 0) { combo.count = 0; combo.multiplier = 1 } } }
@@ -101,7 +150,32 @@ function moveBossTowardPlayer(){if(!boss||boss.health<=0)return;const t=player.x
 function updateMinionShooting(){entityArrays.minions.forEach(t=>{if(t.active&&Date.now()-t.lastShot>t.shootInterval){entityArrays.minionProjectiles.push({x:t.x+t.size/2,y:t.y+t.size,radius:5,speed:3*difficultyMultiplier,active:!0});t.lastShot=Date.now()}})}
 function shootFromBoss(){if(!boss||boss.health<=0||Date.now()-boss.lastShot<boss.shootInterval)return;boss.lastShot=Date.now();const t=boss.x+boss.width/2,e=boss.y+boss.height,a=4*difficultyMultiplier;switch(boss.attackPattern){case'burst':for(let r=-1;r<=1;r++){const s=Math.atan2(player.y-e,player.x+player.size/2-t)+.25*r;entityArrays.bossProjectiles.push({x:t,y:e,radius:8,vx:Math.cos(s)*a,vy:Math.sin(s)*a,active:!0})}break;case'spiral':for(let r=0;r<4;r++){const s=boss.spiralAngle+r*(Math.PI/2);entityArrays.bossProjectiles.push({x:t,y:e,radius:6,vx:Math.cos(s)*a,vy:Math.sin(s)*a,active:!0})}boss.spiralAngle+=.3;break;case'homing':const r=Math.atan2(player.y-e,player.x+player.size/2-t);entityArrays.bossProjectiles.push({x:t,y:e,radius:10,vx:Math.cos(r)*a,vy:Math.sin(r)*a,active:!0,homing:!0,homingDuration:Date.now()+2e3})}}
 function spawnMinion(){const t=boss.minionType;let e={x:Math.random()*(canvas.width-35),y:120,size:25,type:t,health:10,speedX:2,active:!0,lastShot:Date.now(),shootInterval:3e3};if(t==='fast'){e.size=20;e.health=5*difficultyMultiplier;e.speedX=4*difficultyMultiplier;e.shootInterval=2500}else if(t==='tank'){e.size=35;e.health=30*difficultyMultiplier;e.speedX=1*difficultyMultiplier;e.shootInterval=4e3;e.maxHealth=e.health}else{e.health*=difficultyMultiplier;e.speedX*=difficultyMultiplier}entityArrays.minions.push(e)}
-function updateEntities(){function t(t,e){if(!t||!e)return!1;let a=t.x,r=t.y;if(t.x<e.x)a=e.x;else if(t.x>e.x+(e.size||e.width))a=e.x+(e.size||e.width);if(t.y<e.y)r=e.y;else if(t.y>e.y+(e.size||e.height))r=e.y+(e.size||e.height);return Math.hypot(t.x-a,t.y-r)<=t.radius}entityArrays.bossProjectiles.forEach(e=>{if(e.homing&&Date.now()<e.homingDuration&&player){const t=Math.atan2(player.y+player.size/2-e.y,player.x+player.size/2-e.x),a=4*difficultyMultiplier;e.vx=Math.cos(t)*a;e.vy=Math.sin(t)*a}e.x+=e.vx;e.y+=e.vy;if(t(e,player)){checkPlayerDamage(10);e.active=!1}if(e.y>canvas.height+20||e.x<-20||e.x>canvas.width+20)e.active=!1});entityArrays.playerBullets.forEach(e=>{if(e.isSide){e.x+=e.speed}else{e.x+=Math.sin(e.angle)*e.speed;e.y-=Math.cos(e.angle)*e.speed}if(e.y<-20||e.y>canvas.height||e.x<-20||e.x>canvas.width+20)e.active=!1;if(boss.health>0&&t(e,boss)){boss.health-=e.damage;e.active=!1;increaseSpecialMeter(.5)}});entityArrays.minionProjectiles.forEach(e=>{e.y+=e.speed;if(t(e,player)){checkPlayerDamage(5);e.active=!1}if(e.y>canvas.height)e.active=!1});entityArrays.explosions.forEach(t=>{t.radius+=2;t.alpha-=.05;if(t.alpha<=0)t.active=!1});entityArrays.powerUps.forEach(t=>{t.y+=t.speed;if(player&&t.x<player.x+player.size&&t.x+t.size>player.x&&t.y<player.y+player.size&&t.y+t.size>player.y){activatePowerUp(t.type);t.active=!1}if(t.y>canvas.height)t.active=!1});entityArrays.minions.forEach(e=>{e.x+=e.speedX;if(e.x<=0||e.x+e.size>=canvas.width)e.speedX*=-1;entityArrays.playerBullets.forEach(a=>{if(a.active&&t(a,e)){e.health-=a.damage;a.active=!1;increaseSpecialMeter(1)}});if(e.health<=0){if(e.active){score+=50*combo.multiplier;coinsEarnedThisGame+=1;increaseCombo();minionsDestroyedInLevel++;if(minionsDestroyedInLevel>=100)unlockAchievement('minions100');}e.active=!1;if(Math.random()<.15)spawnPowerUp(e.x,e.y)}});if(boss.health<=0){entityArrays.explosions.push({x:boss.x+boss.width/2,y:boss.y+boss.height/2,radius:30,alpha:1,active:!0});playSound(sounds.explosion);coinsEarnedThisGame+=50;score+=1e3*level*combo.multiplier;if(damageTakenInLevel===0)unlockAchievement('noHitBoss');level++;if(level>=5)unlockAchievement('level5');increaseCombo();currentBossIndex=(currentBossIndex+1)%bosses.length;entityArrays.minions.forEach(t=>t.active=!1);entityArrays.bossProjectiles.forEach(t=>t.active=!1);entityArrays.minionProjectiles.forEach(t=>t.active=!1);loadNextBoss()}for(const a in entityArrays)entityArrays[a]=entityArrays[a].filter(t=>t.active)}
+
+// --- INICIO CORRECCIÓN MOVIMIENTO STRIKER ---
+function updateEntities(){
+    function t(t,e){if(!t||!e)return!1;let a=t.x,r=t.y;if(t.x<e.x)a=e.x;else if(t.x>e.x+(e.size||e.width))a=e.x+(e.size||e.width);if(t.y<e.y)r=e.y;else if(t.y>e.y+(e.size||e.height))r=e.y+(e.size||e.height);return Math.hypot(t.x-a,t.y-r)<=t.radius}
+    entityArrays.bossProjectiles.forEach(e=>{if(e.homing&&Date.now()<e.homingDuration&&player){const t=Math.atan2(player.y+player.size/2-e.y,player.x+player.size/2-e.x),a=4*difficultyMultiplier;e.vx=Math.cos(t)*a;e.vy=Math.sin(t)*a}e.x+=e.vx;e.y+=e.vy;if(t(e,player)){checkPlayerDamage(10);e.active=!1}if(e.y>canvas.height+20||e.x<-20||e.x>canvas.width+20)e.active=!1});
+    
+    entityArrays.playerBullets.forEach(e=>{
+        if(e.isSide){
+            e.x += e.speed * e.direction; // Usamos la nueva propiedad 'direction'
+            e.y -= 0.5; // Un ligero movimiento hacia arriba para que no se queden atrás
+        } else {
+            e.x += Math.sin(e.angle) * e.speed;
+            e.y -= Math.cos(e.angle) * e.speed
+        }
+        if(e.y<-20||e.y>canvas.height||e.x<-20||e.x>canvas.width+20)e.active=!1;
+        if(boss.health>0&&t(e,boss)){boss.health-=e.damage;e.active=!1;increaseSpecialMeter(.5)}
+    });
+    // --- FIN CORRECCIÓN MOVIMIENTO STRIKER ---
+    
+    entityArrays.minionProjectiles.forEach(e=>{e.y+=e.speed;if(t(e,player)){checkPlayerDamage(5);e.active=!1}if(e.y>canvas.height)e.active=!1});
+    entityArrays.explosions.forEach(t=>{t.radius+=2;t.alpha-=.05;if(t.alpha<=0)t.active=!1});
+    entityArrays.powerUps.forEach(t=>{t.y+=t.speed;if(player&&t.x<player.x+player.size&&t.x+t.size>player.x&&t.y<player.y+player.size&&t.y+t.size>player.y){activatePowerUp(t.type);t.active=!1}if(t.y>canvas.height)t.active=!1});
+    entityArrays.minions.forEach(e=>{e.x+=e.speedX;if(e.x<=0||e.x+e.size>=canvas.width)e.speedX*=-1;entityArrays.playerBullets.forEach(a=>{if(a.active&&t(a,e)){e.health-=a.damage;a.active=!1;increaseSpecialMeter(1)}});if(e.health<=0){if(e.active){score+=50*combo.multiplier;coinsEarnedThisGame+=1;increaseCombo();minionsDestroyedInLevel++;if(minionsDestroyedInLevel>=100)unlockAchievement('minions100');}e.active=!1;if(Math.random()<.15)spawnPowerUp(e.x,e.y)}});
+    if(boss.health<=0){entityArrays.explosions.push({x:boss.x+boss.width/2,y:boss.y+boss.height/2,radius:30,alpha:1,active:!0});playSound(sounds.explosion);coinsEarnedThisGame+=50;score+=1e3*level*combo.multiplier;if(damageTakenInLevel===0)unlockAchievement('noHitBoss');level++;if(level>=5)unlockAchievement('level5');increaseCombo();currentBossIndex=(currentBossIndex+1)%bosses.length;entityArrays.minions.forEach(t=>t.active=!1);entityArrays.bossProjectiles.forEach(t=>t.active=!1);entityArrays.minionProjectiles.forEach(t=>t.active=!1);loadNextBoss()}
+    for(const a in entityArrays)entityArrays[a]=entityArrays[a].filter(t=>t.active)
+}
 function drawPlayer(){if(Date.now()<player.shieldExpiresAt){ctx.fillStyle="rgba(0, 255, 255, 0.3)";ctx.beginPath();ctx.arc(player.x+player.size/2,player.y+player.size/2,player.size/1.5,0,2*Math.PI);ctx.fill();}if(sprites.player&&sprites.player.loaded){ctx.drawImage(sprites.player,player.x,player.y,player.size,player.size)}else{ctx.fillStyle='lime';ctx.fillRect(player.x,player.y,player.size,player.size)}const t=player.size,e=6,a=player.health/player.maxHealth;if(isNaN(a))return;ctx.fillStyle="#333";ctx.fillRect(player.x,player.y-12,t,e);ctx.fillStyle="#00ff00";ctx.fillRect(player.x,player.y-12,t*a,e)}
 function drawBoss(){if(!boss||isNaN(boss.x)||isNaN(boss.y))return;if(sprites.bosses[currentBossIndex]&&sprites.bosses[currentBossIndex].loaded){ctx.drawImage(sprites.bosses[currentBossIndex],boss.x,boss.y,boss.width,boss.height)}else{ctx.fillStyle='red';ctx.fillRect(boss.x,boss.y,boss.width,boss.height)}const t=boss.width,e=8,a=boss.health/boss.maxHealth;if(isNaN(a))return;ctx.fillStyle="#333";ctx.fillRect(boss.x,boss.y-14,t,e);ctx.fillStyle="#ff0000";ctx.fillRect(boss.x,boss.y-14,t*a,e)}
 function drawProjectiles(){entityArrays.bossProjectiles.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.fillStyle=t.homing&&Date.now()<t.homingDuration?"orange":"#FF00FF";ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()});ctx.fillStyle="cyan";entityArrays.playerBullets.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()});ctx.fillStyle="pink";entityArrays.minionProjectiles.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()})}
@@ -114,11 +188,10 @@ function drawTimerCircle(t,e,a,r,s,i,o){const n=(r/s)*2*Math.PI;ctx.beginPath(),
 function drawUI(){ctx.fillStyle="white";ctx.font="18px Arial";ctx.textAlign="left";ctx.fillText(`Puntuación: ${score}`,10,25);ctx.fillText(`Nivel: ${level}`,10,50);ctx.fillText(`Créditos: ${Math.floor(coinsEarnedThisGame)}`,10,75);let t=110;const e=Date.now();if(e<player.shieldExpiresAt&&sprites.powerUps.shield.loaded){drawTimerCircle(30,t,15,player.shieldExpiresAt-e,8e3,sprites.powerUps.shield,"rgba(0, 255, 255, 0.7)"),t+=45}if(e<player.tripleShotExpiresAt&&sprites.powerUps.tripleShot.loaded)drawTimerCircle(30,t,15,player.tripleShotExpiresAt-e,1e4,sprites.powerUps.tripleShot,"rgba(255, 165, 0, 0.7)");if(combo.count>0){ctx.font="22px Arial",ctx.textAlign="center",ctx.fillStyle="rgba(255, 255, 255, 0.5)",ctx.fillText(`${combo.count} COMBO`,canvas.width/2,canvas.height/2+150),ctx.font="bold 26px Arial",ctx.fillStyle="rgba(255, 255, 255, 0.7)",ctx.fillText(`x${combo.multiplier}`,canvas.width/2,canvas.height/2+185)}}
 function initializeHighScores() { if(!localStorage.getItem(HIGH_SCORES_KEY)){const defaultScores=[{name:"ACE_PILOT",score:150000},{name:"VOID_DRIFTER",score:100000},{name:"NOVA_STRIKER",score:75000},{name:"CYGNUS_X1",score:40000},{name:"ROOKIE",score:10000}];localStorage.setItem(HIGH_SCORES_KEY,JSON.stringify(defaultScores))}}
 
-// --- LÓGICA DE FIN DE JUEGO (CORREGIDA) ---
+// --- LÓGICA DE FIN DE JUEGO (CORREGIDA PARA GUARDAR CRÉDITOS) ---
 function saveAndShowScores() {
     isGameOver = true;
     
-    // CORRECCIÓN: Cargar el progreso ANTES de modificarlo.
     const savedProgress = localStorage.getItem(PLAYER_PROGRESS_KEY);
     let playerProgress;
 
@@ -129,7 +202,7 @@ function saveAndShowScores() {
         playerProgress = null;
     }
 
-    if (!playerProgress) {
+    if (!playerProgress || typeof playerProgress !== 'object') {
         playerProgress = {
             currency: 0, selectedShip: 'interceptor', unlockedShips: ['interceptor'],
             shipUpgrades: { 'interceptor': { damage: 0, firerate: 0 }, 'vanguard': { damage: 0, spread: 0 }, 'striker': { mainDamage: 0, sideDamage: 0 } }
@@ -144,19 +217,25 @@ function saveAndShowScores() {
     localStorage.setItem(PLAYER_PROGRESS_KEY, JSON.stringify(playerProgress));
     
     const name = prompt("Fin de la Misión. Registra tu nombre de piloto:", "PILOTO");
-    const newScore = { name: name || "PILOTO", score: score };
-    const highScores = JSON.parse(localStorage.getItem(HIGH_SCORES_KEY));
-    highScores.push(newScore);
-    highScores.sort((a, b) => b.score - a.score);
-    highScores.splice(5);
-    localStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(highScores));
-    
-    ui.highscoreList.innerHTML = '';
-    highScores.forEach(scoreEntry => {
-        const li = document.createElement('li');
-        li.innerHTML = `<span class="name">${scoreEntry.name}</span> <span class="score">${scoreEntry.score}</span>`;
-        ui.highscoreList.appendChild(li);
-    });
+    // Usar try-catch para la tabla de puntuaciones por si también está corrupta
+    try {
+        const highScores = JSON.parse(localStorage.getItem(HIGH_SCORES_KEY)) || [];
+        const newScore = { name: name || "PILOTO", score: score };
+        highScores.push(newScore);
+        highScores.sort((a, b) => b.score - a.score);
+        highScores.splice(5);
+        localStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(highScores));
+        
+        ui.highscoreList.innerHTML = '';
+        highScores.forEach(scoreEntry => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="name">${scoreEntry.name}</span> <span class="score">${scoreEntry.score}</span>`;
+            ui.highscoreList.appendChild(li);
+        });
+    } catch (e) {
+        console.error("Error al procesar las puntuaciones", e);
+        ui.highscoreList.innerHTML = '<li>Error al cargar puntuaciones</li>';
+    }
     
     ui.highscoreTable.style.display = 'block';
 }
