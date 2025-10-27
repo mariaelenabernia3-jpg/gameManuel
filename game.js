@@ -1,6 +1,10 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// CAMBIO 1: Detección de dispositivo móvil.
+// Esta variable nos permitirá aplicar ajustes específicos para la versión móvil.
+const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
 // --- Variables de Estado del Juego ---
 let level, score, isGameOver, difficultyMultiplier, currentBossIndex, coinMultiplier, activeControl = 'none';
 let stars = [];
@@ -121,6 +125,9 @@ function resetGame(finalStats) {
     combo = { count: 0, multiplier: 1, timer: 0 }; minionsDestroyedInLevel = 0; damageTakenInLevel = 0;
     coinsEarnedThisGame = 0; if (achievements.allPowerups) achievements.allPowerups.progress = new Set();
     player = { x: canvas.width / 2 - 25, y: canvas.height - 100, health: finalStats.baseHealth, maxHealth: finalStats.baseHealth, lastShot: 0, shieldExpiresAt: 0, tripleShotExpiresAt: 0, isFiringLaser: false, specialMeter: 0, maxSpecial: 100, size: 50, ...finalStats };
+    player.hitboxWidth = player.size * 0.6;
+    player.hitboxHeight = player.size * 0.8;
+
     for (const key in entityArrays) { entityArrays[key].length = 0; }
     bossesDefeatedInRun = 0; laserUsesInRun = 0;
     increaseSpecialMeter(0); ui.laserBtn.style.display = 'none'; loadNextBoss();
@@ -163,8 +170,29 @@ canvas.addEventListener('mousemove', e => { activeControl = 'mouse'; mousePos.x 
 window.addEventListener("keydown", e => { const key = e.key.toLowerCase(); if (["arrowup", "w", "arrowdown", "s", "arrowleft", "a", "arrowright", "d"].includes(key)) { activeControl = 'keyboard'; } switch (key) { case "arrowup": case "w": direction = "up"; break; case "arrowdown": case "s": direction = "down"; break; case "arrowleft": case "a": direction = "left"; break; case "arrowright": case "d": direction = "right"; break; case " ": e.preventDefault(); fireLaser(); break; } });
 window.addEventListener("keyup", e => { switch(e.key.toLowerCase()){case "arrowup":case "w":if(direction==="up")direction=null;break;case "arrowdown":case "s":if(direction==="down")direction=null;break;case "arrowleft":case "a":if(direction==="left")direction=null;break;case "arrowright":case "d":if(direction==="right")direction=null;break;} });
 let isDragging = false; let dragOffsetX = 0; let dragOffsetY = 0;
-canvas.addEventListener('touchstart', e => { e.preventDefault(); if (isGameOver) return; activeControl = 'touch'; const touch = e.touches[0]; if (touch.clientX > player.x && touch.clientX < player.x + player.size && touch.clientY > player.y && touch.clientY < player.y + player.size) { isDragging = true; dragOffsetX = touch.clientX - player.x; dragOffsetY = touch.clientY - player.y; } }, { passive: false });
-canvas.addEventListener('touchmove', e => { e.preventDefault(); if (isDragging) { const touch = e.touches[0]; player.x = touch.clientX - dragOffsetX; player.y = touch.clientY - dragOffsetY; } }, { passive: false });
+
+// CAMBIO 2: Mejora radical de los controles táctiles.
+// En lugar de que el dedo esté SOBRE la nave, la nave se posicionará LIGERAMENTE POR ENCIMA del dedo.
+// Esto permite al jugador ver perfectamente lo que tiene delante.
+canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (isGameOver) return;
+    activeControl = 'touch';
+    isDragging = true;
+    // No necesitamos calcular un offset, el movimiento será relativo.
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (isDragging) {
+        const touch = e.touches[0];
+        // La nave sigue al dedo, pero con un desplazamiento vertical de 80px hacia arriba.
+        // Esto mantiene la nave visible por encima del pulgar del jugador.
+        player.x = touch.clientX - player.size / 2;
+        player.y = touch.clientY - player.size / 2 - 80; // El -80 es el offset mágico.
+    }
+}, { passive: false });
+
 canvas.addEventListener('touchend', () => { isDragging = false; });
 function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 function createStars() { stars = []; for (let i = 0; i < 100; i++) { stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5 }); } }
@@ -182,9 +210,71 @@ function updateLaser(){player.specialMeter=Math.max(0,player.specialMeter-player
 function enterPhaseTwo() { boss.isPhaseTwo = true; boss.speed *= 1.5; boss.shootInterval *= 0.7; if (boss.name === "Invasor") boss.phaseTwoProps.wallDirection = 1; if (boss.name === "Depredador") boss.phaseTwoProps.nextTeleport = Date.now() + 2000; entityArrays.minions.forEach(minion => { if (minion.active) { minion.isKamikaze = true; const angle = Math.atan2((player.y + player.size / 2) - (minion.y + minion.size / 2), (player.x + player.size / 2) - (minion.x + minion.size / 2)); const speed = 4 * difficultyMultiplier; minion.vx = Math.cos(angle) * speed; minion.vy = Math.sin(angle) * speed; } }); }
 function moveBoss() { if (!boss || boss.health <= 0) return; if (boss.isPhaseTwo) { switch (boss.name) { case "Guardián": case "Invasor": const targetX = player.x + player.size / 2 - boss.width / 2; const dir = targetX - boss.x; if (Math.abs(dir) > boss.speed) boss.x += Math.sign(dir) * boss.speed; break; case "Depredador": if (Date.now() > boss.phaseTwoProps.nextTeleport) { boss.x = Math.random() * (canvas.width - boss.width); boss.phaseTwoProps.nextTeleport = Date.now() + 3000; } break; } } else { const targetX = player.x + player.size / 2 - boss.width / 2; const dir = targetX - boss.x; if (Math.abs(dir) > boss.speed) boss.x += Math.sign(dir) * boss.speed; } boss.x = Math.max(0, Math.min(canvas.width - boss.width, boss.x)); if (Math.random() < (0.015 * difficultyMultiplier) && entityArrays.minions.length < 5) spawnMinion(); }
 function updateMinionShooting() { entityArrays.minions.forEach(t => { if (t.active && !t.isKamikaze && Date.now() - t.lastShot > t.shootInterval) { entityArrays.minionProjectiles.push({ x: t.x + t.size / 2, y: t.y + t.size, radius: 5, speed: 3 * difficultyMultiplier, active: true }); t.lastShot = Date.now(); } }); }
-function shootFromBoss() { if (!boss || boss.health <= 0 || Date.now() - boss.lastShot < boss.shootInterval) return; boss.lastShot = Date.now(); const centerX = boss.x + boss.width / 2; const centerY = boss.y + boss.height; const baseSpeed = 4 * difficultyMultiplier; const attack = boss.isPhaseTwo ? boss.phaseTwoAttack : boss.attackPattern; switch (attack) { case 'burst': for(let r=-1;r<=1;r++){const s=Math.atan2(player.y-centerY,player.x+player.size/2-centerX)+.25*r;entityArrays.bossProjectiles.push({x:centerX,y:centerY,radius:8,vx:Math.cos(s)*baseSpeed,vy:Math.sin(s)*baseSpeed,active:true})}break; case 'spiral': for(let r=0;r<4;r++){const s=boss.spiralAngle+r*(Math.PI/2);entityArrays.bossProjectiles.push({x:centerX,y:centerY,radius:6,vx:Math.cos(s)*baseSpeed,vy:Math.sin(s)*baseSpeed,active:true})}boss.spiralAngle+=.3;break; case 'homing': const r=Math.atan2(player.y-centerY,player.x+player.size/2-centerX);entityArrays.bossProjectiles.push({x:centerX,y:centerY,radius:10,vx:Math.cos(r)*baseSpeed,vy:Math.sin(r)*baseSpeed,active:true,homing:true,homingDuration:Date.now()+2e3}); break; case 'stream': for(let i=0; i < 3; i++) { setTimeout(() => { if(boss.health > 0) { const s=Math.atan2(player.y-centerY,player.x+player.size/2-centerX);entityArrays.bossProjectiles.push({x:centerX,y:centerY,radius:5,vx:Math.cos(s)*baseSpeed*1.2,vy:Math.sin(s)*baseSpeed*1.2,active:true}); } }, i * 100); } break; case 'walls': const gap = canvas.width / 6; for(let i=0; i < 7; i++) { if(i !== boss.phaseTwoProps.wallDirection) { entityArrays.bossProjectiles.push({x:i*gap,y:centerY,radius:10,vx:0,vy:baseSpeed*0.8,active:true}); } } boss.phaseTwoProps.wallDirection = (boss.phaseTwoProps.wallDirection + 1) % 7; break; case 'shotgun': for(let i=0; i<12; i++) { const s=Math.atan2(player.y-centerY,player.x+player.size/2-centerX)+(Math.random()-0.5)*0.8;entityArrays.bossProjectiles.push({x:centerX,y:centerY,radius:7,vx:Math.cos(s)*baseSpeed,vy:Math.sin(s)*baseSpeed,active:true}); } break; } }
+
+function shootFromBoss() {
+    if (!boss || boss.health <= 0 || Date.now() - boss.lastShot < boss.shootInterval) return;
+    boss.lastShot = Date.now();
+    const centerX = boss.x + boss.width / 2;
+    const centerY = boss.y + boss.height;
+    
+    // CAMBIO 3: Reducción de la velocidad de los proyectiles enemigos en móvil.
+    // Si es móvil, los proyectiles serán un 15% más lentos, dando más tiempo para reaccionar.
+    const speedModifier = isMobile ? 0.85 : 1.0;
+    const baseSpeed = (4 * difficultyMultiplier) * speedModifier;
+
+    const attack = boss.isPhaseTwo ? boss.phaseTwoAttack : boss.attackPattern;
+    switch (attack) {
+        case 'burst':
+            for (let r = -1; r <= 1; r++) {
+                const s = Math.atan2(player.y - centerY, player.x + player.size / 2 - centerX) + .25 * r;
+                entityArrays.bossProjectiles.push({ x: centerX, y: centerY, radius: 8, vx: Math.cos(s) * baseSpeed, vy: Math.sin(s) * baseSpeed, active: true })
+            }
+            break;
+        case 'spiral':
+            for (let r = 0; r < 4; r++) {
+                const s = boss.spiralAngle + r * (Math.PI / 2);
+                entityArrays.bossProjectiles.push({ x: centerX, y: centerY, radius: 6, vx: Math.cos(s) * baseSpeed, vy: Math.sin(s) * baseSpeed, active: true })
+            }
+            boss.spiralAngle += .3;
+            break;
+        case 'homing':
+            const r = Math.atan2(player.y - centerY, player.x + player.size / 2 - centerX);
+            entityArrays.bossProjectiles.push({ x: centerX, y: centerY, radius: 10, vx: Math.cos(r) * baseSpeed, vy: Math.sin(r) * baseSpeed, active: true, homing: true, homingDuration: Date.now() + 2e3 });
+            break;
+        case 'stream':
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    if (boss.health > 0) {
+                        const s = Math.atan2(player.y - centerY, player.x + player.size / 2 - centerX);
+                        entityArrays.bossProjectiles.push({ x: centerX, y: centerY, radius: 5, vx: Math.cos(s) * baseSpeed * 1.2, vy: Math.sin(s) * baseSpeed * 1.2, active: true });
+                    }
+                }, i * 100);
+            }
+            break;
+        case 'walls':
+            const gap = canvas.width / 6;
+            for (let i = 0; i < 7; i++) {
+                if (i !== boss.phaseTwoProps.wallDirection) {
+                    entityArrays.bossProjectiles.push({ x: i * gap, y: centerY, radius: 10, vx: 0, vy: baseSpeed * 0.8, active: true });
+                }
+            }
+            boss.phaseTwoProps.wallDirection = (boss.phaseTwoProps.wallDirection + 1) % 7;
+            break;
+        case 'shotgun':
+            // CAMBIO 4: Reducción de la densidad de ciertos ataques en móvil.
+            // El ataque 'shotgun' es muy denso. Reducimos el número de proyectiles de 12 a 8 en móvil.
+            const bulletCount = isMobile ? 8 : 12;
+            for (let i = 0; i < bulletCount; i++) {
+                const s = Math.atan2(player.y - centerY, player.x + player.size / 2 - centerX) + (Math.random() - 0.5) * 0.8;
+                entityArrays.bossProjectiles.push({ x: centerX, y: centerY, radius: 7, vx: Math.cos(s) * baseSpeed, vy: Math.sin(s) * baseSpeed, active: true });
+            }
+            break;
+    }
+}
 function spawnMinion(){const t=boss.minionType;let e={x:Math.random()*(canvas.width-35),y:120,size:25,type:t,health:10,speedX:2,active:true,lastShot:Date.now(),shootInterval:3e3};if(t==='fast'){e.size=20;e.health=5*difficultyMultiplier;e.speedX=4*difficultyMultiplier;e.shootInterval=2500}else if(t==='tank'){e.size=35;e.health=30*difficultyMultiplier;e.speedX=1*difficultyMultiplier;e.shootInterval=4e3;e.maxHealth=e.health}else{e.health*=difficultyMultiplier;e.speedX*=difficultyMultiplier}entityArrays.minions.push(e)}
-function updateEntities(){ function t(t,e){if(!t||!e)return!1;let a=t.x,r=t.y;if(t.x<e.x)a=e.x;else if(t.x>e.x+(e.size||e.width))a=e.x+(e.size||e.width);if(t.y<e.y)r=e.y;else if(t.y>e.y+(e.size||e.height))r=e.y+(e.size||e.height);return Math.hypot(t.x-a,t.y-r)<=t.radius} entityArrays.bossProjectiles.forEach(e=>{if(e.homing&&Date.now()<e.homingDuration&&player){const t=Math.atan2(player.y+player.size/2-e.y,player.x+player.size/2-e.x),a=4*difficultyMultiplier;e.vx=Math.cos(t)*a;e.vy=Math.sin(t)*a}e.x+=e.vx;e.y+=e.vy;if(player && t(e,player)){checkPlayerDamage(10);e.active=!1}if(e.y>canvas.height+20||e.x<-20||e.x>canvas.width+20)e.active=!1}); entityArrays.playerBullets.forEach(e=>{if(e.isSide){ e.x += e.speed * e.direction; e.y -= 0.5; } else { e.x += Math.sin(e.angle) * e.speed; e.y -= Math.cos(e.angle) * e.speed } if(e.y<-20||e.y>canvas.height||e.x<-20||e.x>canvas.width+20)e.active=!1; if(boss.health>0&&t(e,boss)){boss.health-=e.damage;e.active=!1;increaseSpecialMeter(.5)}}); entityArrays.minionProjectiles.forEach(e=>{e.y+=e.speed;if(player && t(e,player)){checkPlayerDamage(5);e.active=!1}if(e.y>canvas.height)e.active=!1}); entityArrays.explosions.forEach(t=>{t.radius+=2;t.alpha-=.05;if(t.alpha<=0)t.active=!1}); entityArrays.powerUps.forEach(t=>{t.y+=t.speed;if(player && t.x<player.x+player.size&&t.x+t.size>player.x&&t.y<player.y+player.size&&t.y+t.size>player.y){activatePowerUp(t.type);t.active=!1}if(t.y>canvas.height)t.active=!1}); entityArrays.minions.forEach(e=>{ if (e.isKamikaze) { e.x += e.vx; e.y += e.vy; if (player && t({x: player.x, y: player.y, radius: player.size/2}, {x: e.x, y: e.y, radius: e.size/2})) { checkPlayerDamage(20); e.active = false; entityArrays.explosions.push({x: e.x + e.size/2, y: e.y + e.size/2, radius: 15, alpha:1, active:true});} if(e.y > canvas.height + e.size || e.y < -e.size || e.x < -e.size || e.x > canvas.width + e.size) e.active = false; } else { e.x += e.speedX; if(e.x<=0||e.x+e.size>=canvas.width)e.speedX*=-1; } entityArrays.playerBullets.forEach(a=>{if(a.active&&t(a,e)){e.health-=a.damage;a.active=!1;increaseSpecialMeter(1)}}); if(e.health<=0){if(e.active){score+=50*combo.multiplier;coinsEarnedThisGame += (1 * coinMultiplier);increaseCombo();minionsDestroyedInLevel++;if(minionsDestroyedInLevel>=100)unlockAchievement('minions100');}e.active=!1;if(Math.random()<.15)spawnPowerUp(e.x,e.y)} }); if(boss.health<=0){ entityArrays.explosions.push({x:boss.x+boss.width/2,y:boss.y+boss.height/2,radius:30,alpha:1,active:!0}); playSound(sounds.explosion); coinsEarnedThisGame += (50 * coinMultiplier); score+=1e3*level*combo.multiplier; if(damageTakenInLevel===0) unlockAchievement('noHitBoss'); if (player && player.health / player.maxHealth < 0.1) unlockAchievement('closeCall'); level++; if(level>=5) unlockAchievement('level5'); bossesDefeatedInRun++; if (bossesDefeatedInRun >= 3) unlockAchievement('bossHunter'); increaseCombo(); currentBossIndex=(currentBossIndex+1)%bosses.length; entityArrays.minions.forEach(t=>t.active=!1); entityArrays.bossProjectiles.forEach(t=>t.active=!1); entityArrays.minionProjectiles.forEach(t=>t.active=!1); loadNextBoss(); } for(const a in entityArrays)entityArrays[a]=entityArrays[a].filter(t=>t.active) }
+function updateEntities(){ function t(t,e){if(!t||!e)return!1;let a=t.x,r=t.y;if(t.x<e.x)a=e.x;else if(t.x>e.x+(e.size||e.width))a=e.x+(e.size||e.width);if(t.y<e.y)r=e.y;else if(t.y>e.y+(e.size||e.height))r=e.y+(e.size||e.height);return Math.hypot(t.x-a,t.y-r)<=t.radius}
+    const playerHitbox = { x: player.x + (player.size - player.hitboxWidth) / 2, y: player.y + (player.size - player.hitboxHeight) / 2, width: player.hitboxWidth, height: player.hitboxHeight };
+    entityArrays.bossProjectiles.forEach(e=>{if(e.homing&&Date.now()<e.homingDuration&&player){const t=Math.atan2(player.y+player.size/2-e.y,player.x+player.size/2-e.x),a=4*difficultyMultiplier;e.vx=Math.cos(t)*a;e.vy=Math.sin(t)*a}e.x+=e.vx;e.y+=e.vy;if(player && t(e,playerHitbox)){checkPlayerDamage(10);e.active=!1}if(e.y>canvas.height+20||e.x<-20||e.x>canvas.width+20)e.active=!1}); entityArrays.playerBullets.forEach(e=>{if(e.isSide){ e.x += e.speed * e.direction; e.y -= 0.5; } else { e.x += Math.sin(e.angle) * e.speed; e.y -= Math.cos(e.angle) * e.speed } if(e.y<-20||e.y>canvas.height||e.x<-20||e.x>canvas.width+20)e.active=!1; if(boss.health>0&&t(e,boss)){boss.health-=e.damage;e.active=!1;increaseSpecialMeter(.5)}}); entityArrays.minionProjectiles.forEach(e=>{e.y+=e.speed;if(player && t(e,playerHitbox)){checkPlayerDamage(5);e.active=!1}if(e.y>canvas.height)e.active=!1}); entityArrays.explosions.forEach(t=>{t.radius+=2;t.alpha-=.05;if(t.alpha<=0)t.active=!1}); entityArrays.powerUps.forEach(t=>{t.y+=t.speed;if(player && t.x<player.x+player.size&&t.x+t.size>player.x&&t.y<player.y+player.size&&t.y+t.size>player.y){activatePowerUp(t.type);t.active=!1}if(t.y>canvas.height)t.active=!1}); entityArrays.minions.forEach(e=>{ if (e.isKamikaze) { e.x += e.vx; e.y += e.vy; const playerHitboxRadius = (player.hitboxWidth + player.hitboxHeight) / 4; const distance = Math.hypot( (e.x + e.size/2) - (player.x + player.size/2), (e.y + e.size/2) - (player.y + player.size/2) ); if (player && distance < playerHitboxRadius + e.size/2) { checkPlayerDamage(20); e.active = false; entityArrays.explosions.push({x: e.x + e.size/2, y: e.y + e.size/2, radius: 15, alpha:1, active:true});} if(e.y > canvas.height + e.size || e.y < -e.size || e.x < -e.size || e.x > canvas.width + e.size) e.active = false; } else { e.x += e.speedX; if(e.x<=0||e.x+e.size>=canvas.width)e.speedX*=-1; } entityArrays.playerBullets.forEach(a=>{if(a.active&&t(a,e)){e.health-=a.damage;a.active=!1;increaseSpecialMeter(1)}}); if(e.health<=0){if(e.active){score+=50*combo.multiplier;coinsEarnedThisGame += (1 * coinMultiplier);increaseCombo();minionsDestroyedInLevel++;if(minionsDestroyedInLevel>=100)unlockAchievement('minions100');}e.active=!1;if(Math.random()<.15)spawnPowerUp(e.x,e.y)} }); if(boss.health<=0){ entityArrays.explosions.push({x:boss.x+boss.width/2,y:boss.y+boss.height/2,radius:30,alpha:1,active:!0}); playSound(sounds.explosion); coinsEarnedThisGame += (50 * coinMultiplier); score+=1e3*level*combo.multiplier; if(damageTakenInLevel===0) unlockAchievement('noHitBoss'); if (player && player.health / player.maxHealth < 0.1) unlockAchievement('closeCall'); level++; if(level>=5) unlockAchievement('level5'); bossesDefeatedInRun++; if (bossesDefeatedInRun >= 3) unlockAchievement('bossHunter'); increaseCombo(); currentBossIndex=(currentBossIndex+1)%bosses.length; entityArrays.minions.forEach(t=>t.active=!1); entityArrays.bossProjectiles.forEach(t=>t.active=!1); entityArrays.minionProjectiles.forEach(t=>t.active=!1); loadNextBoss(); } for(const a in entityArrays)entityArrays[a]=entityArrays[a].filter(t=>t.active) }
 function drawPlayer(){if(!player || isNaN(player.x)) return; if(Date.now()<player.shieldExpiresAt){ctx.fillStyle="rgba(0, 255, 255, 0.3)";ctx.beginPath();ctx.arc(player.x+player.size/2,player.y+player.size/2,player.size/1.5,0,2*Math.PI);ctx.fill();}if(sprites.player&&sprites.player.loaded){ctx.drawImage(sprites.player,player.x,player.y,player.size,player.size)}else{ctx.fillStyle='lime';ctx.fillRect(player.x,player.y,player.size,player.size)}const t=player.size,e=6,a=player.health/player.maxHealth;if(isNaN(a))return;ctx.fillStyle="#333";ctx.fillRect(player.x,player.y-12,t,e);ctx.fillStyle="#00ff00";ctx.fillRect(player.x,player.y-12,t*a,e)}
 function drawBoss(){if(!boss||isNaN(boss.x)||isNaN(boss.y))return; const phaseTwoEffect = boss.isPhaseTwo && Math.floor(Date.now() / 200) % 2 === 0; if (phaseTwoEffect) ctx.filter = 'brightness(1.5) saturate(2)'; if(sprites.bosses[currentBossIndex]&&sprites.bosses[currentBossIndex].loaded){ctx.drawImage(sprites.bosses[currentBossIndex],boss.x,boss.y,boss.width,boss.height)}else{ctx.fillStyle='red';ctx.fillRect(boss.x,boss.y,boss.width,boss.height)} ctx.filter = 'none'; const t=boss.width,e=8,a=boss.health/boss.maxHealth;if(isNaN(a))return;ctx.fillStyle="#333";ctx.fillRect(boss.x,boss.y-14,t,e);ctx.fillStyle="#ff0000";ctx.fillRect(boss.x,boss.y-14,t*a,e)}
 function drawProjectiles(){entityArrays.bossProjectiles.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.fillStyle=t.homing&&Date.now()<t.homingDuration?"orange":"#FF00FF";ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()});ctx.fillStyle="cyan";entityArrays.playerBullets.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()});ctx.fillStyle="pink";entityArrays.minionProjectiles.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()})}
