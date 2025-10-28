@@ -68,7 +68,7 @@ canvas {
     }
 }
 
-/* --- ESTILOS DE CARGA Y CUENTA REGRESIVA (AÑADIR AL FINAL) --- */
+/* --- ESTILOS DE CARGA Y CUENTA REGRESIVA --- */
 #loading-screen {
     position: fixed;
     top: 0;
@@ -116,7 +116,10 @@ canvas {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 15rem;
+    /* --- INICIO DE LA CORRECCIÓN --- */
+    /* Valores reducidos para que el texto sea más pequeño */
+    font-size: clamp(6rem, 25vw, 12rem); 
+    /* --- FIN DE LA CORRECCIÓN --- */
     font-weight: bold;
     color: #00ffff;
     text-shadow: 0 0 15px #fff, 0 0 30px #00ffff;

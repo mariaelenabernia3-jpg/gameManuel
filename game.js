@@ -8,7 +8,8 @@ const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 let level, score, isGameOver, difficultyMultiplier, currentBossIndex, coinMultiplier, activeControl = 'none';
 let stars = [];
 let combo = { count: 0, multiplier: 1, timer: 0 };
-const entityArrays = { bossProjectiles: [], playerBullets: [], explosions: [], minions: [], powerUps: [], minionProjectiles: [] };
+const entityArrays = { bossProjectiles: [], playerBullets: [], explosions: [], minions: [], powerUps: [], minionProjectiles: [], companionBullets: [] };
+let companion = null;
 let coinsEarnedThisGame = 0;
 let bossesDefeatedInRun = 0;
 let laserUsesInRun = 0;
@@ -19,7 +20,17 @@ const sprites = {
     playerShips: { interceptor: loadImage('assets/nave.png'), vanguard: loadImage('assets/nave2.png'), striker: loadImage('assets/nave3.png') },
     player: null,
     bosses: [loadImage('assets/Boss1.png'), loadImage('assets/Boss2.png'), loadImage('assets/Boss3.png')],
-    powerUps: { tripleShot: loadImage('assets/powerup_triple.png'), shield: loadImage('assets/powerup_shield.png'), bomb: loadImage('assets/powerup_bomb.png'), health: loadImage('assets/powerup_health.png') },
+    powerUps: {
+        tripleShot: loadImage('assets/powerup_triple.png'),
+        shield: loadImage('assets/powerup_shield.png'),
+        bomb: loadImage('assets/powerup_bomb.png'),
+        health: loadImage('assets/powerup_health.png'),
+        companion: loadImage('assets/powerup_companion.png')
+    },
+    companionDrone: loadImage('assets/drone.png'),
+    // --- INICIO DE LA MODIFICACIÓN ---
+    minion: loadImage('assets/Enemy.png'), // <-- NUEVA IMAGEN PARA LOS SECUACES
+    // --- FIN DE LA MODIFICACIÓN ---
     backgrounds: [loadImage('assets/fondo1.png'), loadImage('assets/fondo2.png')]
 };
 const sounds = { shoot: new Audio('assets/hitHurt.wav'), explosion: new Audio('assets/explosion.wav') };
@@ -61,7 +72,10 @@ function prepareGame(diffMult) {
 }
 
 function preloadAssets(onCompleteCallback) {
-    const assetList = [ ...Object.values(sprites.playerShips), ...sprites.bosses, ...Object.values(sprites.powerUps), ...sprites.backgrounds, ...Object.values(sounds) ];
+    // --- INICIO DE LA MODIFICACIÓN ---
+    // Añadida la imagen del secuaz a la lista de precarga
+    const assetList = [ ...Object.values(sprites.playerShips), ...sprites.bosses, ...Object.values(sprites.powerUps), sprites.companionDrone, sprites.minion, ...sprites.backgrounds, ...Object.values(sounds) ];
+    // --- FIN DE LA MODIFICACIÓN ---
     let loadedCount = 0;
     const totalAssets = assetList.length;
     if (totalAssets === 0) { onCompleteCallback(); return; }
@@ -126,6 +140,7 @@ function resetGame(finalStats) {
     player.hitboxWidth = player.size * 0.6;
     player.hitboxHeight = player.size * 0.8;
     for (const key in entityArrays) { entityArrays[key].length = 0; }
+    companion = null;
     bossesDefeatedInRun = 0; laserUsesInRun = 0;
     increaseSpecialMeter(0); ui.laserBtn.style.display = 'none'; loadNextBoss();
 }
@@ -141,9 +156,14 @@ function loadNextBoss() {
 let lastTime = 0; function gameLoop(timestamp) { if (isGameOver) return; const deltaTime = (timestamp - lastTime) / 1000 || 0; lastTime = timestamp; score++; update(deltaTime); draw(); requestAnimationFrame(gameLoop); }
 
 function update(dt) {
-    updateStars(); updatePlayerState(dt); handleControls(); autoShootPlayer();
+    updateStars(); 
+    updatePlayerState(dt); 
+    updateCompanion();
+    handleControls(); 
+    autoShootPlayer();
     if (boss.health > 0) { if (boss.health <= boss.maxHealth / 2 && !boss.isPhaseTwo) { enterPhaseTwo(); } moveBoss(); shootFromBoss(); }
-    updateMinionShooting(); updateEntities();
+    updateMinionShooting(); 
+    updateEntities();
     if (player.isFiringLaser) updateLaser();
     if (coinsEarnedThisGame >= 250) { unlockAchievement('creditHoarder'); }
 }
@@ -151,7 +171,16 @@ function update(dt) {
 function draw() {
     ctx.fillStyle = "#000010"; ctx.fillRect(0, 0, canvas.width, canvas.height);
     if (currentBackground && currentBackground.loaded) { ctx.drawImage(currentBackground, 0, 0, canvas.width, canvas.height); }
-    drawStars(); drawPlayer(); if (boss && boss.health > 0) drawBoss(); drawProjectiles(); drawMinions(); drawExplosions(); drawPowerUps(); if (player.isFiringLaser) drawLaser(); drawUI();
+    drawStars(); 
+    drawPlayer(); 
+    if (companion && companion.active) drawCompanion();
+    if (boss && boss.health > 0) drawBoss(); 
+    drawProjectiles(); 
+    drawMinions(); 
+    drawExplosions(); 
+    drawPowerUps(); 
+    if (player.isFiringLaser) drawLaser(); 
+    drawUI();
 }
     
 ui.easyBtn.addEventListener('click', () => prepareGame(0.75));
@@ -162,13 +191,13 @@ ui.laserBtn.addEventListener('click', fireLaser);
 ui.backToMenuFromScoresBtn.addEventListener('click', () => { window.location.href = 'menu.html'; });
 
 window.addEventListener("resize", resizeCanvas);
+canvas.addEventListener('contextmenu', e => e.preventDefault());
 let direction = null; const mousePos = { x: 0, y: 0 };
 canvas.addEventListener('mousemove', e => { activeControl = 'mouse'; mousePos.x = e.clientX; mousePos.y = e.clientY; });
 window.addEventListener("keydown", e => { const key = e.key.toLowerCase(); if (["arrowup", "w", "arrowdown", "s", "arrowleft", "a", "arrowright", "d"].includes(key)) { activeControl = 'keyboard'; } switch (key) { case "arrowup": case "w": direction = "up"; break; case "arrowdown": case "s": direction = "down"; break; case "arrowleft": case "a": direction = "left"; break; case "arrowright": case "d": direction = "right"; break; case " ": e.preventDefault(); fireLaser(); break; } });
 window.addEventListener("keyup", e => { switch(e.key.toLowerCase()){case "arrowup":case "w":if(direction==="up")direction=null;break;case "arrowdown":case "s":if(direction==="down")direction=null;break;case "arrowleft":case "a":if(direction==="left")direction=null;break;case "arrowright":case "d":if(direction==="right")direction=null;break;} });
 
 // --- Controles Táctiles Relativos (Anti-Teletransporte) ---
-
 let isDragging = false;
 let touchStartX = 0;
 let touchStartY = 0;
@@ -180,36 +209,25 @@ canvas.addEventListener('touchstart', e => {
     if (isGameOver) return;
     activeControl = 'touch';
     isDragging = true;
-    
     const touch = e.touches[0];
-    
-    // Guardamos la posición INICIAL del toque y de la nave para el movimiento relativo
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
     playerStartX = player.x;
     playerStartY = player.y;
-
 }, { passive: false });
 
 canvas.addEventListener('touchmove', e => {
     e.preventDefault();
     if (isDragging) {
         const touch = e.touches[0];
-        
-        // Calculamos la diferencia (delta) entre el inicio y la posición actual del dedo
         const deltaX = touch.clientX - touchStartX;
         const deltaY = touch.clientY - touchStartY;
-        
-        // Aplicamos esa diferencia a la posición INICIAL de la nave
         player.x = playerStartX + deltaX;
         player.y = playerStartY + deltaY;
     }
 }, { passive: false });
 
-canvas.addEventListener('touchend', () => {
-    isDragging = false;
-});
-
+canvas.addEventListener('touchend', () => { isDragging = false; });
 // --- Fin de los Controles Táctiles ---
 
 function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
@@ -220,11 +238,65 @@ function autoShootPlayer() { if (!player || typeof player.shootInterval !== 'num
 function checkPlayerDamage(t) { if (!(Date.now() < player.shieldExpiresAt)) { player.health -= t; damageTakenInLevel += t; if (player.health <= 0 && !isGameOver) saveAndShowScores() } }
 function increaseCombo() { combo.count++; combo.timer = 3; combo.multiplier = 1 + Math.floor(combo.count / 5); if (combo.count >= 50) unlockAchievement('combo50') }
 function updatePlayerState(t) { if (combo.timer > 0) { combo.timer -= t; if (combo.timer <= 0) { combo.count = 0; combo.multiplier = 1 } } }
-function spawnPowerUp(t, e) { const powerupTypes = ['tripleShot', 'shield', 'bomb', 'health']; const type = powerupTypes[Math.floor(Math.random() * powerupTypes.length)]; const size = (type === 'health') ? 64 : 30; entityArrays.powerUps.push({ x: t, y: e, type: type, size: size, speed: 2, active: true }); }
-function activatePowerUp(t){achievements.allPowerups.progress.add(t);if(achievements.allPowerups.progress.size>=4)unlockAchievement('allPowerups');switch(t){case'tripleShot':player.tripleShotExpiresAt=Date.now()+10000;break;case'shield':player.shieldExpiresAt=Date.now()+8000;break;case'bomb':entityArrays.minions.forEach(t=>t.active=!1);entityArrays.bossProjectiles.forEach(t=>t.active=!1);entityArrays.minionProjectiles.forEach(t=>t.active=!1);break;case'health':player.health=Math.min(player.maxHealth,player.health+25);break;}}
+function spawnPowerUp(t, e) {
+    const powerupTypes = ['tripleShot', 'shield', 'bomb', 'health', 'companion'];
+    const type = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
+    const size = (type === 'health') ? 64 : (type === 'companion' ? 40 : 30);
+    entityArrays.powerUps.push({ x: t, y: e, type: type, size: size, speed: 2, active: true });
+}
+function activatePowerUp(t){
+    achievements.allPowerups.progress.add(t);
+    if(achievements.allPowerups.progress.size >= 5) unlockAchievement('allPowerups');
+    switch(t){
+        case 'tripleShot': player.tripleShotExpiresAt = Date.now() + 10000; break;
+        case 'shield': player.shieldExpiresAt = Date.now() + 8000; break;
+        case 'bomb': entityArrays.minions.forEach(t => t.active = !1); entityArrays.bossProjectiles.forEach(t => t.active = !1); entityArrays.minionProjectiles.forEach(t => t.active = !1); break;
+        case 'health': player.health = Math.min(player.maxHealth, player.health + 25); break;
+        case 'companion':
+            companion = {
+                x: player.x,
+                y: player.y,
+                size: 40,
+                expiresAt: Date.now() + 15000, 
+                lastShot: 0,
+                shootInterval: 600, 
+                damage: 5, 
+                active: true
+            };
+            break;
+    }
+}
 function increaseSpecialMeter(t){if(player.isFiringLaser)return;player.specialMeter=Math.min(player.maxSpecial,player.specialMeter+t);ui.specialMeterBar.style.width=`${player.specialMeter/player.maxSpecial*100}%`;if(player.specialMeter>=player.maxSpecial){ui.laserBtn.style.display='block'}}
 function fireLaser(){if(player.specialMeter>=player.maxSpecial&&!isGameOver&&!player.isFiringLaser){player.isFiringLaser=!0;ui.laserBtn.style.display='none';setTimeout(()=>{player.isFiringLaser=!1},3e3); laserUsesInRun++; if (laserUsesInRun >= 5) { unlockAchievement('laserMaster'); } }}
 function updateLaser(){player.specialMeter=Math.max(0,player.specialMeter-player.maxSpecial/180);ui.specialMeterBar.style.width=`${player.specialMeter/player.maxSpecial*100}%`;const t={x:player.x+player.size/2-5,y:0,width:10,height:player.y};entityArrays.minions.forEach(e=>{if(e.active&&t.x<e.x+e.size&&t.x+t.width>e.x){e.health-=2}});if(boss.health>0&&t.x<boss.x+boss.width&&t.x+t.width>boss.x){boss.health-=2}}
+function updateCompanion() {
+    if (!companion || !companion.active) return;
+
+    if (Date.now() > companion.expiresAt) {
+        companion.active = false;
+        companion = null;
+        return;
+    }
+
+    const targetX = player.x - 50; 
+    const targetY = player.y + 20;
+    const lerpFactor = 0.1; 
+    companion.x += (targetX - companion.x) * lerpFactor;
+    companion.y += (targetY - companion.y) * lerpFactor;
+
+    if (Date.now() - companion.lastShot > companion.shootInterval) {
+        playSound(sounds.shoot); 
+        entityArrays.companionBullets.push({
+            x: companion.x + companion.size / 2,
+            y: companion.y,
+            radius: 4,
+            speed: 6,
+            damage: companion.damage,
+            active: true
+        });
+        companion.lastShot = Date.now();
+    }
+}
 function enterPhaseTwo() { boss.isPhaseTwo = true; boss.speed *= 1.5; boss.shootInterval *= 0.7; if (boss.name === "Invasor") boss.phaseTwoProps.wallDirection = 1; if (boss.name === "Depredador") boss.phaseTwoProps.nextTeleport = Date.now() + 2000; entityArrays.minions.forEach(minion => { if (minion.active) { minion.isKamikaze = true; const angle = Math.atan2((player.y + player.size / 2) - (minion.y + minion.size / 2), (player.x + player.size / 2) - (minion.x + minion.size / 2)); const speed = 4 * difficultyMultiplier; minion.vx = Math.cos(angle) * speed; minion.vy = Math.sin(angle) * speed; } }); }
 function moveBoss() { if (!boss || boss.health <= 0) return; if (boss.isPhaseTwo) { switch (boss.name) { case "Guardián": case "Invasor": const targetX = player.x + player.size / 2 - boss.width / 2; const dir = targetX - boss.x; if (Math.abs(dir) > boss.speed) boss.x += Math.sign(dir) * boss.speed; break; case "Depredador": if (Date.now() > boss.phaseTwoProps.nextTeleport) { boss.x = Math.random() * (canvas.width - boss.width); boss.phaseTwoProps.nextTeleport = Date.now() + 3000; } break; } } else { const targetX = player.x + player.size / 2 - boss.width / 2; const dir = targetX - boss.x; if (Math.abs(dir) > boss.speed) boss.x += Math.sign(dir) * boss.speed; } boss.x = Math.max(0, Math.min(canvas.width - boss.width, boss.x)); if (Math.random() < (0.015 * difficultyMultiplier) && entityArrays.minions.length < 5) spawnMinion(); }
 function updateMinionShooting() { entityArrays.minions.forEach(t => { if (t.active && !t.isKamikaze && Date.now() - t.lastShot > t.shootInterval) { entityArrays.minionProjectiles.push({ x: t.x + t.size / 2, y: t.y + t.size, radius: 5, speed: 3 * difficultyMultiplier, active: true }); t.lastShot = Date.now(); } }); }
@@ -233,10 +305,8 @@ function shootFromBoss() {
     boss.lastShot = Date.now();
     const centerX = boss.x + boss.width / 2;
     const centerY = boss.y + boss.height;
-    
     const speedModifier = isMobile ? 0.85 : 1.0;
     const baseSpeed = (4 * difficultyMultiplier) * speedModifier;
-
     const attack = boss.isPhaseTwo ? boss.phaseTwoAttack : boss.attackPattern;
     switch (attack) {
         case 'burst': for(let r=-1;r<=1;r++){const s=Math.atan2(player.y-centerY,player.x+player.size/2-centerX)+.25*r;entityArrays.bossProjectiles.push({x:centerX,y:centerY,radius:8,vx:Math.cos(s)*baseSpeed,vy:Math.sin(s)*baseSpeed,active:true})}break;
@@ -244,9 +314,7 @@ function shootFromBoss() {
         case 'homing': const r=Math.atan2(player.y-centerY,player.x+player.size/2-centerX);entityArrays.bossProjectiles.push({x:centerX,y:centerY,radius:10,vx:Math.cos(r)*baseSpeed,vy:Math.sin(r)*baseSpeed,active:true,homing:true,homingDuration:Date.now()+2e3}); break;
         case 'stream': for(let i=0; i < 3; i++) { setTimeout(() => { if(boss.health > 0) { const s=Math.atan2(player.y-centerY,player.x+player.size/2-centerX);entityArrays.bossProjectiles.push({x:centerX,y:centerY,radius:5,vx:Math.cos(s)*baseSpeed*1.2,vy:Math.sin(s)*baseSpeed*1.2,active:true}); } }, i * 100); } break;
         case 'walls': const gap = canvas.width / 6; for(let i=0; i < 7; i++) { if(i !== boss.phaseTwoProps.wallDirection) { entityArrays.bossProjectiles.push({x:i*gap,y:centerY,radius:10,vx:0,vy:baseSpeed*0.8,active:true}); } } boss.phaseTwoProps.wallDirection = (boss.phaseTwoProps.wallDirection + 1) % 7; break;
-        case 'shotgun':
-            const bulletCount = isMobile ? 8 : 12;
-            for(let i=0; i<bulletCount; i++) { const s=Math.atan2(player.y-centerY,player.x+player.size/2-centerX)+(Math.random()-0.5)*0.8;entityArrays.bossProjectiles.push({x:centerX,y:centerY,radius:7,vx:Math.cos(s)*baseSpeed,vy:Math.sin(s)*baseSpeed,active:true}); } break;
+        case 'shotgun': const bulletCount = isMobile ? 8 : 12; for(let i=0; i<bulletCount; i++) { const s=Math.atan2(player.y-centerY,player.x+player.size/2-centerX)+(Math.random()-0.5)*0.8;entityArrays.bossProjectiles.push({x:centerX,y:centerY,radius:7,vx:Math.cos(s)*baseSpeed,vy:Math.sin(s)*baseSpeed,active:true}); } break;
     }
 }
 function spawnMinion(){const t=boss.minionType;let e={x:Math.random()*(canvas.width-35),y:120,size:25,type:t,health:10,speedX:2,active:true,lastShot:Date.now(),shootInterval:3e3};if(t==='fast'){e.size=20;e.health=5*difficultyMultiplier;e.speedX=4*difficultyMultiplier;e.shootInterval=2500}else if(t==='tank'){e.size=35;e.health=30*difficultyMultiplier;e.speedX=1*difficultyMultiplier;e.shootInterval=4e3;e.maxHealth=e.health}else{e.health*=difficultyMultiplier;e.speedX*=difficultyMultiplier}entityArrays.minions.push(e)}
@@ -258,21 +326,98 @@ function updateEntities(){ function t(t,e){if(!t||!e)return!1;let a=t.x,r=t.y;if
     entityArrays.explosions.forEach(t=>{t.radius+=2;t.alpha-=.05;if(t.alpha<=0)t.active=!1});
     entityArrays.powerUps.forEach(t=>{t.y+=t.speed;if(player && t.x<player.x+player.size&&t.x+t.size>player.x&&t.y<player.y+player.size&&t.y+t.size>player.y){activatePowerUp(t.type);t.active=!1}if(t.y>canvas.height)t.active=!1});
     entityArrays.minions.forEach(e=>{ if (e.isKamikaze) { e.x += e.vx; e.y += e.vy; const playerHitboxRadius = (player.hitboxWidth + player.hitboxHeight) / 4; const distance = Math.hypot( (e.x + e.size/2) - (player.x + player.size/2), (e.y + e.size/2) - (player.y + player.size/2) ); if (player && distance < playerHitboxRadius + e.size/2) { checkPlayerDamage(20); e.active = false; entityArrays.explosions.push({x: e.x + e.size/2, y: e.y + e.size/2, radius: 15, alpha:1, active:true});} if(e.y > canvas.height + e.size || e.y < -e.size || e.x < -e.size || e.x > canvas.width + e.size) e.active = false; } else { e.x += e.speedX; if(e.x<=0||e.x+e.size>=canvas.width)e.speedX*=-1; } entityArrays.playerBullets.forEach(a=>{if(a.active&&t(a,e)){e.health-=a.damage;a.active=!1;increaseSpecialMeter(1)}}); if(e.health<=0){if(e.active){score+=50*combo.multiplier;coinsEarnedThisGame += (1 * coinMultiplier);increaseCombo();minionsDestroyedInLevel++;if(minionsDestroyedInLevel>=100)unlockAchievement('minions100');}e.active=!1;if(Math.random()<.15)spawnPowerUp(e.x,e.y)} });
+    entityArrays.companionBullets.forEach(bullet => {
+        bullet.y -= bullet.speed; 
+        if (bullet.y < -10) bullet.active = false;
+        entityArrays.minions.forEach(minion => {
+            if (minion.active && t(bullet, minion)) {
+                minion.health -= bullet.damage;
+                bullet.active = false;
+            }
+        });
+        if (boss.health > 0 && t(bullet, boss)) {
+            boss.health -= bullet.damage;
+            bullet.active = false;
+        }
+    });
     if(boss.health<=0){ entityArrays.explosions.push({x:boss.x+boss.width/2,y:boss.y+boss.height/2,radius:30,alpha:1,active:!0}); playSound(sounds.explosion); coinsEarnedThisGame += (50 * coinMultiplier); score+=1e3*level*combo.multiplier; if(damageTakenInLevel===0) unlockAchievement('noHitBoss'); if (player && player.health / player.maxHealth < 0.1) unlockAchievement('closeCall'); level++; if(level>=5) unlockAchievement('level5'); bossesDefeatedInRun++; if (bossesDefeatedInRun >= 3) unlockAchievement('bossHunter'); increaseCombo(); currentBossIndex=(currentBossIndex+1)%bosses.length; entityArrays.minions.forEach(t=>t.active=!1); entityArrays.bossProjectiles.forEach(t=>t.active=!1); entityArrays.minionProjectiles.forEach(t=>t.active=!1); loadNextBoss(); }
     for(const a in entityArrays)entityArrays[a]=entityArrays[a].filter(t=>t.active)
 }
 function drawPlayer(){if(!player || isNaN(player.x)) return; if(Date.now()<player.shieldExpiresAt){ctx.fillStyle="rgba(0, 255, 255, 0.3)";ctx.beginPath();ctx.arc(player.x+player.size/2,player.y+player.size/2,player.size/1.5,0,2*Math.PI);ctx.fill();}if(sprites.player&&sprites.player.loaded){ctx.drawImage(sprites.player,player.x,player.y,player.size,player.size)}else{ctx.fillStyle='lime';ctx.fillRect(player.x,player.y,player.size,player.size)}const t=player.size,e=6,a=player.health/player.maxHealth;if(isNaN(a))return;ctx.fillStyle="#333";ctx.fillRect(player.x,player.y-12,t,e);ctx.fillStyle="#00ff00";ctx.fillRect(player.x,player.y-12,t*a,e)}
 function drawBoss(){if(!boss||isNaN(boss.x)||isNaN(boss.y))return; const phaseTwoEffect = boss.isPhaseTwo && Math.floor(Date.now() / 200) % 2 === 0; if (phaseTwoEffect) ctx.filter = 'brightness(1.5) saturate(2)'; if(sprites.bosses[currentBossIndex]&&sprites.bosses[currentBossIndex].loaded){ctx.drawImage(sprites.bosses[currentBossIndex],boss.x,boss.y,boss.width,boss.height)}else{ctx.fillStyle='red';ctx.fillRect(boss.x,boss.y,boss.width,boss.height)} ctx.filter = 'none'; const t=boss.width,e=8,a=boss.health/boss.maxHealth;if(isNaN(a))return;ctx.fillStyle="#333";ctx.fillRect(boss.x,boss.y-14,t,e);ctx.fillStyle="#ff0000";ctx.fillRect(boss.x,boss.y-14,t*a,e)}
-function drawProjectiles(){entityArrays.bossProjectiles.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.fillStyle=t.homing&&Date.now()<t.homingDuration?"orange":"#FF00FF";ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()});ctx.fillStyle="cyan";entityArrays.playerBullets.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()});ctx.fillStyle="pink";entityArrays.minionProjectiles.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()})}
-function drawMinions(){entityArrays.minions.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.fillStyle=t.isKamikaze ? "#FF5733" : ("tank"===t.type?"#A04040":"#8B0000"); ctx.fillRect(t.x,t.y,t.size,t.size);if(t.type==='tank'&&t.health>0){const e=t.size,a=t.health/t.maxHealth;if(isNaN(a))return;ctx.fillStyle="#333";ctx.fillRect(t.x,t.y-8,e,4);ctx.fillStyle="red";ctx.fillRect(t.x,t.y-8,e*a,4)}})}
+function drawProjectiles(){
+    entityArrays.bossProjectiles.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.fillStyle=t.homing&&Date.now()<t.homingDuration?"orange":"#FF00FF";ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()});
+    ctx.fillStyle="cyan";entityArrays.playerBullets.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()});
+    ctx.fillStyle="pink";entityArrays.minionProjectiles.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,2*Math.PI);ctx.fill()});
+    ctx.fillStyle = "#FFA500"; 
+    entityArrays.companionBullets.forEach(t => { if (!t || isNaN(t.x) || isNaN(t.y)) return; ctx.beginPath(); ctx.arc(t.x, t.y, t.radius, 0, 2 * Math.PI); ctx.fill() });
+}
+// --- INICIO DE LA MODIFICACIÓN ---
+// Actualizada la función para dibujar los secuaces con su imagen
+function drawMinions() {
+    entityArrays.minions.forEach(t => {
+        if (!t || isNaN(t.x) || isNaN(t.y)) return;
+
+        if (sprites.minion && sprites.minion.loaded) {
+            // Si es kamikaze, le aplicamos un filtro para que se vea rojo y brillante
+            if (t.isKamikaze) {
+                ctx.filter = 'hue-rotate(180deg) brightness(1.5)';
+            }
+            ctx.drawImage(sprites.minion, t.x, t.y, t.size, t.size);
+            // Reseteamos el filtro para que no afecte a otros elementos
+            ctx.filter = 'none';
+        } else {
+            // Si la imagen no carga, dibujamos un cuadrado como antes
+            ctx.fillStyle = t.isKamikaze ? "#FF5733" : ("tank" === t.type ? "#A04040" : "#8B0000");
+            ctx.fillRect(t.x, t.y, t.size, t.size);
+        }
+
+        // Dibuja la barra de vida para los secuaces tipo 'tank'
+        if (t.type === 'tank' && t.health > 0) {
+            const e = t.size, a = t.health / t.maxHealth;
+            if (isNaN(a)) return;
+            ctx.fillStyle = "#333";
+            ctx.fillRect(t.x, t.y - 8, e, 4);
+            ctx.fillStyle = "red";
+            ctx.fillRect(t.x, t.y - 8, e * a, 4);
+        }
+    });
+}
+// --- FIN DE LA MODIFICACIÓN ---
 function drawExplosions(){entityArrays.explosions.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.fillStyle=`rgba(255,165,0,${t.alpha})`,ctx.beginPath(),ctx.arc(t.x,t.y,t.radius,0,2*Math.PI),ctx.fill()})}
 function drawPowerUps(){entityArrays.powerUps.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;if(sprites.powerUps[t.type]&&sprites.powerUps[t.type].loaded){ctx.drawImage(sprites.powerUps[t.type],t.x,t.y,t.size,t.size)}else{ctx.fillStyle='yellow';ctx.fillRect(t.x,t.y,t.size,t.size)}})}
+function drawCompanion() {
+    if (!companion || isNaN(companion.x)) return;
+    if (sprites.companionDrone && sprites.companionDrone.loaded) {
+        ctx.drawImage(sprites.companionDrone, companion.x, companion.y, companion.size, companion.size);
+    } else {
+        ctx.fillStyle = '#00FFFF'; 
+        ctx.fillRect(companion.x, companion.y, companion.size, companion.size);
+    }
+}
 function drawLaser(){if(!player||isNaN(player.x))return;ctx.fillStyle="rgba(255,0,255,0.8)",ctx.fillRect(player.x+player.size/2-5,0,10,player.y),ctx.fillStyle="rgba(255,255,255,0.9)",ctx.fillRect(player.x+player.size/2-2,0,4,player.y)}
 function drawStars(){ctx.fillStyle="white",stars.forEach(t=>{if(!t||isNaN(t.x)||isNaN(t.y))return;ctx.fillRect(t.x,t.y,t.size,t.size)})}
 function drawTimerCircle(t,e,a,r,s,i,o){const n=(r/s)*2*Math.PI;ctx.beginPath(),ctx.arc(t,e,a,0,2*Math.PI),ctx.strokeStyle="rgba(255,255,255,0.3)",ctx.lineWidth=2,ctx.stroke(),ctx.beginPath(),ctx.moveTo(t,e),ctx.arc(t,e,a,-Math.PI/2,-Math.PI/2+n),ctx.closePath(),ctx.fillStyle=o,ctx.fill(),i&&i.loaded&&(()=>{const r=1.2*a;ctx.drawImage(i,t-r/2,e-r/2,r,r)})()}
-function drawUI(){if(!isGameOver){ctx.fillStyle="white";ctx.font="18px Arial";ctx.textAlign="left";ctx.fillText(`Puntuación: ${score}`,10,25);ctx.fillText(`Nivel: ${level}`,10,50);ctx.fillText(`Créditos: ${Math.floor(coinsEarnedThisGame)}`,10,75);}let t=110;const e=Date.now();if(e<player.shieldExpiresAt&&sprites.powerUps.shield.loaded){drawTimerCircle(30,t,15,player.shieldExpiresAt-e,8e3,sprites.powerUps.shield,"rgba(0, 255, 255, 0.7)"),t+=45}if(e<player.tripleShotExpiresAt&&sprites.powerUps.tripleShot.loaded)drawTimerCircle(30,t,15,player.tripleShotExpiresAt-e,1e4,sprites.powerUps.tripleShot,"rgba(255, 165, 0, 0.7)");if(combo.count>0){ctx.font="22px Arial",ctx.textAlign="center",ctx.fillStyle="rgba(255, 255, 255, 0.5)",ctx.fillText(`${combo.count} COMBO`,canvas.width/2,canvas.height/2+150),ctx.font="bold 26px Arial",ctx.fillStyle="rgba(255, 255, 255, 0.7)",ctx.fillText(`x${combo.multiplier}`,canvas.width/2,canvas.height/2+185)}}
+function drawUI(){
+    if(!isGameOver){ctx.fillStyle="white";ctx.font="18px Arial";ctx.textAlign="left";ctx.fillText(`Puntuación: ${score}`,10,25);ctx.fillText(`Nivel: ${level}`,10,50);ctx.fillText(`Créditos: ${Math.floor(coinsEarnedThisGame)}`,10,75);}
+    let t = 110;
+    const e = Date.now();
+    if (e < player.shieldExpiresAt && sprites.powerUps.shield.loaded) {
+        drawTimerCircle(30, t, 15, player.shieldExpiresAt - e, 8000, sprites.powerUps.shield, "rgba(0, 255, 255, 0.7)");
+        t += 45;
+    }
+    if (e < player.tripleShotExpiresAt && sprites.powerUps.tripleShot.loaded) {
+        drawTimerCircle(30, t, 15, player.tripleShotExpiresAt - e, 10000, sprites.powerUps.tripleShot, "rgba(255, 165, 0, 0.7)");
+        t += 45;
+    }
+    if (companion && companion.active && sprites.powerUps.companion.loaded) {
+        drawTimerCircle(30, t, 15, companion.expiresAt - e, 15000, sprites.powerUps.companion, "rgba(173, 216, 230, 0.7)");
+        t += 45;
+    }
+    if(combo.count>0){ctx.font="22px Arial",ctx.textAlign="center",ctx.fillStyle="rgba(255, 255, 255, 0.5)",ctx.fillText(`${combo.count} COMBO`,canvas.width/2,canvas.height/2+150),ctx.font="bold 26px Arial",ctx.fillStyle="rgba(255, 255, 255, 0.7)",ctx.fillText(`x${combo.multiplier}`,canvas.width/2,canvas.height/2+185)}
+}
 function initializeHighScores() { if(!localStorage.getItem(HIGH_SCORES_KEY)){const defaultScores=[{name:"ACE_PILOT",score:150000},{name:"VOID_DRIFTER",score:100000},{name:"NOVA_STRIKER",score:75000},{name:"CYGNUS_X1",score:40000},{name:"ROOKIE",score:10000}];localStorage.setItem(HIGH_SCORES_KEY,JSON.stringify(defaultScores))}}
-function saveAndShowScores() { isGameOver = true; const playerProgress = getSanitizedPlayerProgress(); playerProgress.currency += Math.floor(coinsEarnedThisGame); localStorage.setItem(PLAYER_PROGRESS_KEY, JSON.stringify(playerProgress)); const name = prompt("Fin de la Misión. Registra tu nombre de piloto:", "PILOTO"); try { const highScores = JSON.parse(localStorage.getItem(HIGH_SCORES_KEY)) || []; const newScore = { name: name || "PILOTO", score: score }; highScores.push(newScore); highScores.sort((a, b) => b.score - a.score); highScores.splice(5); localStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(highScores)); ui.highscoreList.innerHTML = ''; highScores.forEach(scoreEntry => { const li = document.createElement('li'); li.innerHTML = `<span class="name">${scoreEntry.name}</span> <span class="score">${scoreEntry.score}</span>`; ui.highscoreList.appendChild(li); }); } catch (e) { console.error("Error al procesar las puntuaciones", e); ui.highscoreList.innerHTML = '<li>Error al cargar puntuaciones</li>'; } ui.highscoreTable.style.display = 'block'; }
+function saveAndShowScores() { isGameOver = true; const playerProgress = getSanitizedPlayerProgress(); playerProgress.currency += Math.floor(coinsEarnedThisGame); localStorage.setItem(PLAYER_PROGRESS_KEY, JSON.stringify(playerProgress)); const name = prompt("Fin de la Misión. Registra tu nombre de piloto:", "PILOTO"); try { const highScores = JSON.parse(localStorage.getItem(HIGH_SCORES_KEY)) || []; const newScore = { name: name || "PILOTO", score: score }; highScores.push(newScore); highScores.sort((a, b) => b.score - a.score); highScores.splice(5); localStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(highScores)); ui.highscoreList.innerHTML = ''; highScores.forEach(scoreEntry => { const li = document.createElement('li'); li.innerHTML = `<span class="name">${scoreEntry.name}</span> <span class.score">${scoreEntry.score}</span>`; ui.highscoreList.appendChild(li); }); } catch (e) { console.error("Error al procesar las puntuaciones", e); ui.highscoreList.innerHTML = '<li>Error al cargar puntuaciones</li>'; } ui.highscoreTable.style.display = 'block'; }
 
 // --- INICIALIZACIÓN ---
 resizeCanvas(); initializeHighScores(); loadAchievements(); createStars();

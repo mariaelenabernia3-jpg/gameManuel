@@ -106,21 +106,32 @@ html, body {
         font-size: 1.2rem;
         padding: 12px 25px;
     }
-    #ship-selection-container {
-        flex-direction: column;
-        align-items: center;
-        max-height: 60vh;
-        overflow-y: auto;
-        padding-right: 10px; /* Espacio para la barra de scroll */
-    }
-    .ship-bay {
-        width: 100%;
-        max-width: 300px; /* Limita el ancho en pantallas muy anchas en modo vertical */
-    }
+    
     .modal {
         padding: 20px 15px;
     }
     .modal h2 {
         font-size: 1.5rem;
+    }
+    
+    /* --- INICIO DE LA CORRECCIÓN --- */
+    #hangar-modal {
+        max-height: 85vh; /* Limita la altura del modal */
+        display: flex;
+        flex-direction: column;
+    }
+
+    #ship-selection-container {
+        flex-direction: column;
+        align-items: center;
+        overflow-y: auto; /* Permite el scroll vertical */
+        flex-grow: 1; /* Hace que este contenedor ocupe el espacio disponible */
+        padding-right: 10px; /* Espacio para la barra de scroll */
+    }
+    /* --- FIN DE LA CORRECCIÓN --- */
+
+    .ship-bay {
+        width: 100%;
+        max-width: 300px; /* Limita el ancho en pantallas muy anchas en modo vertical */
     }
 }
