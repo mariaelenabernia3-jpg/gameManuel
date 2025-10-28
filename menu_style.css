@@ -1,137 +1,51 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+html,body{margin:0;padding:0;overflow:hidden;background:#000010;font-family:'Orbitron',sans-serif;color:white;height:100%;width:100%}
+#starfield-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}
+.menu-container{display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;text-align:center;padding:0 15px;box-sizing:border-box}
+.game-title{font-size:4.5rem;font-weight:700;color:#00ffff;text-shadow:0 0 5px #00ffff,0 0 15px #00ffff,0 0 30px #ffffff;margin-bottom:20px;letter-spacing:2px}
+.currency-display{font-size:1.5rem;color:#ffd700;margin-bottom:30px;text-shadow:0 0 5px #ffd700}
+.button-container{display:flex;flex-direction:column;gap:20px}
+.menu-button{font-family:'Orbitron',sans-serif;background:transparent;border:2px solid #00ffff;color:#00ffff;padding:15px 35px;font-size:1.5rem;text-transform:uppercase;cursor:pointer;transition:all 0.3s ease;box-shadow:0 0 10px rgba(0,255,255,0.5)}
+.menu-button:hover{background:rgba(0,255,255,0.2);color:white;box-shadow:0 0 20px rgba(0,255,255,0.8),0 0 30px rgba(0,255,255,0.5)}
+.modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:800px;background-color:rgba(20,20,40,0.95);border:2px solid #00ffff;border-radius:10px;padding:25px;z-index:100;text-align:center;transition:opacity 0.3s ease,transform 0.3s ease;box-sizing:border-box}
+.modal.hidden{opacity:0;pointer-events:none;transform:translate(-50%,-45%)}
+.modal h2{margin-top:0;color:#00ffff;text-shadow:0 0 5px #00ffff}
+.modal h3{color:#ffd700}
+.modal-close-btn{margin-top:20px;background-color:#6c757d;border:none;color:white;padding:10px 25px;font-size:1rem;cursor:pointer;border-radius:5px}
+.modal-close-cross{position:absolute;top:10px;right:15px;background:none;border:none;color:#aaa;font-size:2.5rem;line-height:1;cursor:pointer;transition:color 0.2s ease}
+.modal-close-cross:hover{color:#fff}
+.difficulty-options,.records-options{display:flex;justify-content:center;gap:20px;margin:20px 0;flex-wrap:wrap}
+#records-list{list-style-type:none;padding:0;margin:15px auto;text-align:left;max-width:400px}
+#records-list li{display:flex;justify-content:space-between;background:rgba(0,255,255,0.1);padding:10px;margin-bottom:5px;border-radius:4px;font-size:1.1rem}
+#records-list .name{font-weight:bold;color:#fff}
+#records-list .score{color:#ffd700}
+#ship-selection-container{display:flex;justify-content:space-around;gap:20px;flex-wrap:wrap}
+.ship-bay{border:2px solid #445;border-radius:8px;padding:15px;width:220px;transition:all 0.3s ease;box-sizing:border-box}
+.ship-bay.locked{border-color:#800;opacity:0.7}
+.ship-bay.selected{border-color:#00ffff;box-shadow:0 0 15px #00ffff}
+.ship-name{font-size:1.5rem;color:#00ffff;margin-bottom:10px}
+.ship-desc{font-size:0.8rem;color:#ccc;min-height:50px}
+.ship-status{font-weight:bold;margin:15px 0}
+.ship-status.status-locked{color:#ff4d4d}
+.ship-status.status-owned{color:#4dff4d}
+.ship-action-btn{font-family:'Orbitron';width:100%;padding:12px;border:none;border-radius:5px;font-size:1rem;cursor:pointer}
+.buy-btn{background-color:#ffd700;color:black}
+.select-btn{background-color:#28a745;color:white}
+.select-btn:disabled{background-color:#555;color:#aaa;cursor:not-allowed}
+.ship-upgrades{margin-top:15px}
+.upgrade-item button{width:100%;background-color:#0056b3;color:white;border:none;padding:8px;margin-top:5px;cursor:pointer;border-radius:4px}
+.upgrade-item button:disabled{background-color:#333;cursor:not-allowed}
+#achievements-list{list-style:none;padding:0;text-align:left;max-height:350px;overflow-y:auto}
+#achievements-list li{padding:8px;margin-bottom:5px;border-radius:4px}
+#achievements-list li.unlocked{background:#15632d;color:#fff;font-weight:bold}
+#achievements-list li.locked{background:#334;color:#aaa}
 
-html, body {
-    margin: 0; padding: 0; overflow: hidden;
-    background: #000010; font-family: 'Orbitron', sans-serif;
-    color: white; height: 100%; width: 100%;
-}
+@media(max-width:768px){.game-title{font-size:2.8rem}.menu-button{font-size:1.2rem;padding:12px 25px}.modal{padding:20px 15px}.modal h2{font-size:1.5rem}#hangar-modal{max-height:85vh;display:flex;flex-direction:column}#ship-selection-container{flex-direction:column;align-items:center;overflow-y:auto;flex-grow:1;padding-right:10px}.ship-bay{width:100%;max-width:300px}}
 
-#starfield-canvas {
-    position: fixed; top: 0; left: 0;
-    width: 100%; height: 100%; z-index: -1;
-}
-
-.menu-container {
-    display: flex; flex-direction: column;
-    justify-content: center; align-items: center;
-    height: 100vh; text-align: center;
-    padding: 0 15px; box-sizing: border-box;
-}
-
-.game-title {
-    font-size: 4.5rem; font-weight: 700; color: #00ffff;
-    text-shadow: 0 0 5px #00ffff, 0 0 15px #00ffff, 0 0 30px #ffffff;
-    margin-bottom: 20px; letter-spacing: 2px;
-}
-
-.currency-display {
-    font-size: 1.5rem; color: #ffd700;
-    margin-bottom: 30px; text-shadow: 0 0 5px #ffd700;
-}
-
-.button-container { display: flex; flex-direction: column; gap: 20px; }
-.menu-button {
-    font-family: 'Orbitron', sans-serif; background: transparent;
-    border: 2px solid #00ffff; color: #00ffff;
-    padding: 15px 35px; font-size: 1.5rem; text-transform: uppercase;
-    cursor: pointer; transition: all 0.3s ease;
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-}
-.menu-button:hover {
-    background: rgba(0, 255, 255, 0.2); color: white;
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(0, 255, 255, 0.5);
-}
-
-.modal {
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%); width: 90%; max-width: 800px;
-    background-color: rgba(20, 20, 40, 0.95); border: 2px solid #00ffff;
-    border-radius: 10px; padding: 25px; z-index: 100;
-    text-align: center; transition: opacity 0.3s ease, transform 0.3s ease;
-    box-sizing: border-box;
-}
-.modal.hidden { opacity: 0; pointer-events: none; transform: translate(-50%, -45%); }
-.modal h2 { margin-top: 0; color: #00ffff; text-shadow: 0 0 5px #00ffff; }
-
-.modal-close-btn {
-    margin-top: 20px; background-color: #6c757d; border: none;
-    color: white; padding: 10px 25px; font-size: 1rem;
-    cursor: pointer; border-radius: 5px;
-}
-
-.modal-close-cross {
-    position: absolute;
-    top: 10px;
-    right: 15px;
-    background: none;
-    border: none;
-    color: #aaa;
-    font-size: 2.5rem;
-    line-height: 1;
-    cursor: pointer;
-    transition: color 0.2s ease;
-}
-.modal-close-cross:hover { color: #fff; }
-
-/* --- Hangar --- */
-#ship-selection-container { display: flex; justify-content: space-around; gap: 20px; flex-wrap: wrap; }
-.ship-bay { border: 2px solid #445; border-radius: 8px; padding: 15px; width: 220px; transition: all 0.3s ease; box-sizing: border-box; }
-.ship-bay.locked { border-color: #800; opacity: 0.7; }
-.ship-bay.selected { border-color: #00ffff; box-shadow: 0 0 15px #00ffff; }
-.ship-name { font-size: 1.5rem; color: #00ffff; margin-bottom: 10px; }
-.ship-desc { font-size: 0.8rem; color: #ccc; min-height: 50px; }
-.ship-status { font-weight: bold; margin: 15px 0; }
-.ship-status.status-locked { color: #ff4d4d; }
-.ship-status.status-owned { color: #4dff4d; }
-.ship-action-btn { font-family: 'Orbitron'; width: 100%; padding: 12px; border: none; border-radius: 5px; font-size: 1rem; cursor: pointer; }
-.buy-btn { background-color: #ffd700; color: black; }
-.select-btn { background-color: #28a745; color: white; }
-.select-btn:disabled { background-color: #555; color: #aaa; cursor: not-allowed; }
-.ship-upgrades { margin-top: 15px; }
-.upgrade-item button { width: 100%; background-color: #0056b3; color: white; border: none; padding: 8px; margin-top: 5px; cursor: pointer; border-radius: 4px; }
-.upgrade-item button:disabled { background-color: #333; cursor: not-allowed; }
-
-/* --- Logros --- */
-#achievements-list { list-style: none; padding: 0; text-align: left; max-height: 250px; overflow-y: auto;}
-#achievements-list li { padding: 8px; margin-bottom: 5px; border-radius: 4px; }
-#achievements-list li.unlocked { background: #15632d; color: #fff; font-weight: bold; }
-#achievements-list li.locked { background: #334; color: #aaa; }
-
-/* --- AJUSTES PARA MÓVILES --- */
-@media (max-width: 768px) {
-    .game-title {
-        font-size: 2.8rem;
-    }
-    .menu-button {
-        font-size: 1.2rem;
-        padding: 12px 25px;
-    }
-    
-    .modal {
-        padding: 20px 15px;
-    }
-    .modal h2 {
-        font-size: 1.5rem;
-    }
-    
-    /* --- INICIO DE LA CORRECCIÓN --- */
-    #hangar-modal {
-        max-height: 85vh; /* Limita la altura del modal */
-        display: flex;
-        flex-direction: column;
-    }
-
-    #ship-selection-container {
-        flex-direction: column;
-        align-items: center;
-        overflow-y: auto; /* Permite el scroll vertical */
-        flex-grow: 1; /* Hace que este contenedor ocupe el espacio disponible */
-        padding-right: 10px; /* Espacio para la barra de scroll */
-    }
-    /* --- FIN DE LA CORRECCIÓN --- */
-
-    .ship-bay {
-        width: 100%;
-        max-width: 300px; /* Limita el ancho en pantallas muy anchas en modo vertical */
-    }
+/* Añade esto al final de tu menu_style.css */
+.campaign-record-display {
+    font-size: 1.2rem;
+    color: #c0c0c0; /* Color plateado */
+    margin-bottom: 30px;
+    text-shadow: 0 0 5px #c0c0c0;
 }

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AceCraft Evolution</title>
+    <link rel="stylesheet" href="game.css">
+    <style>
+        #lore-modal { text-align: left; max-width: 600px; background-color: rgba(10, 10, 20, 0.95); }
+        #lore-modal h2 { text-align: center; color: #ffd700; }
+        #lore-modal p { font-family: 'Segoe UI', sans-serif; font-size: 1.1rem; line-height: 1.6; color: #ddd; }
+        #mission-complete-modal h2 { color: #00ff00; }
+        #mission-complete-modal .results-grid { display: grid; grid-template-columns: auto auto; gap: 10px 20px; text-align: left; margin: 20px auto; max-width: 300px; justify-content: center; }
+        #mission-complete-modal .result-label { font-weight: bold; color: #00ffff; }
+        #mission-complete-modal .result-value { color: #ffd700; text-align: right; }
+        #mission-complete-modal .rank-display { font-size: 4rem; font-weight: bold; margin: 10px 0; text-shadow: 0 0 10px #fff; }
+        .rank-S { color: #ff00ff; } .rank-A { color: #00ff00; } .rank-B { color: #ffd700; } .rank-C { color: #ffffff; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="lore-modal" class="modal">
+        <h2 id="lore-title">BRIEFING DE MISIÓN</h2>
+        <p id="lore-text">Cargando datos...</p>
+        <button id="start-mission-btn" class="menu-button" style="margin-top: 20px;">INICIAR MISIÓN</button>
+    </div>
+
+    <div id="special-meter-container" style="display: none;"><div id="special-meter-bar"></div></div>
+    <button id="laserBtn" class="hud-button" style="display: none;">⚡ LÁSER ⚡</button>
+
+    <div id="game-over-modal" class="modal" style="display: none;"> <h2>Misión Fallida</h2> <h3 style="color: #ff4d4d;">Volviendo al menú...</h3> </div>
+    <div id="mission-complete-modal" class="modal" style="display: none;"> <h2>Misión Completada</h2> <div id="rank-display" class="rank-display">S</div> <div class="results-grid"> <span class="result-label">Puntuación:</span> <span id="results-score" class="result-value">0</span> <span class="result-label">Créditos Base:</span> <span id="results-base-credits" class="result-value">0</span> <span class="result-label">Bonus Rango:</span> <span id="results-rank-bonus" class="result-value">x1.0</span> <span class="result-label">Bonus Dificultad:</span> <span id="results-difficulty-bonus" class="result-value">x1.0</span> <hr style="grid-column: span 2; border-color: #00ffff55;"> <span class="result-label">Total Créditos:</span> <span id="results-total-credits" class="result-value">0</span> </div> <button id="return-to-menu-btn" class="menu-button" style="margin-top: 20px;">Volver al Menú</button> </div>
+
+    <!-- El script se cambia para cada misión -->
+    <script src="REEMPLAZAR_CON_EL_JS_DE_LA_MISION.js"></script>
+</body>
+</html>

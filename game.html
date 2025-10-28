@@ -2,47 +2,62 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <!-- Meta Tag crucial para el diseño responsivo en móviles -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>AceCraft Evolution</title>
   <link rel="stylesheet" href="game.css">
+  <style>
+      /* Estilos adicionales para la pantalla de resultados */
+      #mission-complete-modal h2 { color: #00ff00; }
+      #mission-complete-modal .results-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px 20px;
+          text-align: left;
+          margin: 20px auto;
+          max-width: 300px;
+      }
+      #mission-complete-modal .result-label { font-weight: bold; color: #00ffff; }
+      #mission-complete-modal .result-value { color: #ffd700; }
+      #mission-complete-modal .rank-display { font-size: 4rem; font-weight: bold; margin: 10px 0; }
+      #mission-complete-modal .rank-S { color: #ff00ff; }
+      #mission-complete-modal .rank-A { color: #00ff00; }
+      #mission-complete-modal .rank-B { color: #ffd700; }
+      #mission-complete-modal .rank-C { color: #ffffff; }
+  </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
-
-  <div id="start-menu" class="modal">
-    <h2>Preparando Misión</h2>
-    <h3>Selecciona la Dificultad</h3>
-    <button id="easyBtn">Fácil</button>
-    <button id="normalBtn">Normal</button>
-    <button id="hardBtn">Difícil</button>
-    <button id="back-to-menu-btn" class="secondary-button">Volver al Hangar</button>
-  </div>
 
   <div id="achievement-toast"></div>
   <div id="special-meter-container"><div id="special-meter-bar"></div></div>
   <button id="laserBtn" class="hud-button">⚡ LÁSER ⚡</button>
 
-  <div id="highscore-table" class="modal">
-      <h2>Fin de la Misión</h2>
-      <h3>Mejores Puntuaciones</h3>
-      <ol id="highscore-list"></ol>
-      <button id="back-to-menu-from-scores-btn">Volver al Menú</button>
+  <!-- Modal de Fin de Juego por Muerte -->
+  <div id="game-over-modal" class="modal">
+      <h2>Misión Fallida</h2>
+      <h3>Registrando Puntuación...</h3>
   </div>
 
-  <!-- CAMBIO: Nuevos elementos para la pantalla de carga y la cuenta regresiva -->
-  <div id="loading-screen">
-    <div class="loading-content">
-      <h2>CARGANDO MISIÓN...</h2>
-      <div id="loading-bar-container">
-        <div id="loading-bar"></div>
+  <!-- Modal de Misión Completada -->
+  <div id="mission-complete-modal" class="modal">
+      <h2>Misión Completada</h2>
+      <div id="rank-display" class="rank-display">S</div>
+      <div class="results-grid">
+          <span class="result-label">Puntuación:</span>
+          <span id="results-score" class="result-value">0</span>
+          <span class="result-label">Créditos Base:</span>
+          <span id="results-base-credits" class="result-value">0</span>
+          <span class="result-label">Bonus Rango:</span>
+          <span id="results-rank-bonus" class="result-value">x1.0</span>
+          <span class="result-label">Bonus Dificultad:</span>
+          <span id="results-difficulty-bonus" class="result-value">x1.0</span>
+          <hr style="grid-column: span 2; border-color: #00ffff55;">
+          <span class="result-label">Total Créditos:</span>
+          <span id="results-total-credits" class="result-value">0</span>
       </div>
-      <p id="loading-text">Inicializando sistemas...</p>
-    </div>
+      <button id="return-to-menu-btn" class="hud-button" style="position: static; background: #007BFF;">Volver al Menú</button>
   </div>
 
-  <div id="countdown-display"></div>
-
-  <script src="game.js" defer></script>
+  <script src="game.js"></script>
 </body>
 </html>

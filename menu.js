@@ -8,47 +8,39 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawStars() { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = "white"; stars.forEach(star => { star.y += star.speed; if (star.y > canvas.height) { star.y = 0; star.x = Math.random() * canvas.width; } ctx.fillRect(star.x, star.y, star.size, star.size); }); }
     function animate() { drawStars(); requestAnimationFrame(animate); }
     window.addEventListener('resize', () => { resizeCanvas(); createStars(); });
-    resizeCanvas();
-    createStars();
-    animate();
+    resizeCanvas(); createStars(); animate();
 
-    // --- DEFINICIONES DE DATOS ---
+    // --- DEFINICIONES DE DATOS Y CLAVES ---
     const shipsData = {
         'interceptor': { name: 'Interceptor', description: 'Nave equilibrada con un cañón de plasma frontal de alta velocidad.', price: 0, upgrades: { damage: { label: 'Daño de Plasma', cost: 100, maxLevel: 5 }, firerate: { label: 'Cadencia de Fuego', cost: 150, maxLevel: 5 } } },
         'vanguard': { name: 'Vanguard', description: 'Equipada con un cañón de dispersión que dispara tres proyectiles a la vez.', price: 500, upgrades: { damage: { label: 'Daño por Proyectil', cost: 120, maxLevel: 5 }, spread: { label: 'Amplitud de Dispersión', cost: 200, maxLevel: 3 } } },
         'striker': { name: 'Striker', description: 'Dispara un proyectil frontal potente y dos cañones laterales de apoyo.', price: 1000, upgrades: { mainDamage: { label: 'Cañón Principal', cost: 150, maxLevel: 5 }, sideDamage: { label: 'Cañones Laterales', cost: 180, maxLevel: 5 } } }
     };
-    
-    // --- LÓGICA DE PROGRESO DEL JUGADOR ---
     const PLAYER_PROGRESS_KEY = 'aceCraftPlayerProgress';
+    const GAME_SETTINGS_KEY = 'aceCraftGameSettings';
+    const HIGH_SCORES_KEY = 'aceCraftHighScores';
+    const BOSS_RUSH_HIGH_SCORES_KEY = 'aceCraftBossRushHighScores';
+    const ACHIEVEMENTS_KEY = 'aceCraftAchievements';
     let playerProgress;
+    let targetMissionHtml = ''; // Variable para guardar a qué misión ir (ej: "game1.html")
 
+    // --- LÓGICA DE PROGRESO DEL JUGADOR ---
     function loadProgress() {
         const saved = localStorage.getItem(PLAYER_PROGRESS_KEY);
         try {
-            if (saved) {
-                playerProgress = JSON.parse(saved);
-                if (typeof playerProgress !== 'object' || playerProgress === null) {
-                    throw new Error("Los datos guardados no son válidos.");
-                }
-            } else {
-                throw new Error("No hay progreso guardado.");
-            }
-        } catch (error) {
-            console.error("No se pudo cargar el progreso. Se usará el estado por defecto.", error);
-            playerProgress = {
-                currency: 0,
-                selectedShip: 'interceptor',
-                unlockedShips: ['interceptor'],
-                shipUpgrades: {
-                    'interceptor': { damage: 0, firerate: 0 },
-                    'vanguard': { damage: 0, spread: 0 },
-                    'striker': { mainDamage: 0, sideDamage: 0 }
-                }
+            playerProgress = saved ? JSON.parse(saved) : {
+                currency: 0, selectedShip: 'interceptor', unlockedShips: ['interceptor'],
+                shipUpgrades: { 'interceptor': { damage: 0, firerate: 0 }, 'vanguard': { damage: 0, spread: 0 }, 'striker': { mainDamage: 0, sideDamage: 0 } }
             };
-        }
-        if (typeof playerProgress.currency !== 'number' || isNaN(playerProgress.currency)) {
-            playerProgress.currency = 0;
+             // Asegurar que la estructura de shipUpgrades exista para todas las naves
+            for (const shipId in shipsData) {
+                if (!playerProgress.shipUpgrades[shipId]) {
+                    playerProgress.shipUpgrades[shipId] = {};
+                }
+            }
+        } catch (e) {
+            console.error("Error al cargar progreso, reseteando.");
+            playerProgress = { currency: 0, selectedShip: 'interceptor', unlockedShips: ['interceptor'], shipUpgrades: { 'interceptor': { damage: 0, firerate: 0 }, 'vanguard': { damage: 0, spread: 0 }, 'striker': { mainDamage: 0, sideDamage: 0 } } };
         }
         document.getElementById('total-currency-display').textContent = playerProgress.currency;
     }
@@ -58,13 +50,60 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('total-currency-display').textContent = playerProgress.currency;
     }
 
-    // --- LÓGICA DEL HANGAR ---
+    // --- LÓGICA DE MODALES ---
+    const campaignModal = document.getElementById('campaign-modal');
+    const difficultyModal = document.getElementById('difficulty-modal');
     const hangarModal = document.getElementById('hangar-modal');
-    const shipContainer = document.getElementById('ship-selection-container');
-    const hangarBtn = document.getElementById('hangar-btn');
-    const closeHangarBtn = document.getElementById('close-hangar-btn');
-    const closeHangarCrossBtn = document.getElementById('close-hangar-cross-btn');
+    const recordsModal = document.getElementById('records-modal');
+    const achievementsModal = document.getElementById('achievements-modal');
 
+    // --- SELECCIÓN DE MODO DE JUEGO Y DIFICULTAD ---
+    document.getElementById('campaign-btn').addEventListener('click', () => {
+        campaignModal.classList.remove('hidden');
+    });
+    
+    document.querySelectorAll('.mission-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            targetMissionHtml = e.target.dataset.missionHtml;
+            campaignModal.classList.add('hidden');
+            difficultyModal.dataset.mode = 'campaign';
+            difficultyModal.classList.remove('hidden');
+        });
+    });
+
+    document.getElementById('boss-rush-btn').addEventListener('click', () => {
+        alert("Modo Boss Rush en construcción.");
+        // Para cuando lo implementes, el código sería:
+        // targetMissionHtml = 'game_boss_rush.html'; 
+        // difficultyModal.dataset.mode = 'boss_rush';
+        // difficultyModal.classList.remove('hidden');
+    });
+
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const difficulty = parseFloat(e.target.dataset.difficulty);
+            const mode = difficultyModal.dataset.mode;
+            
+            localStorage.setItem(GAME_SETTINGS_KEY, JSON.stringify({ difficulty, mode }));
+
+            if (targetMissionHtml) {
+                window.location.href = targetMissionHtml;
+            }
+        });
+    });
+    
+    document.querySelectorAll('.close-campaign-modal, .close-difficulty-modal, .close-hangar-cross-btn, .close-records-modal, .close-achievements-modal').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.target.closest('.modal').classList.add('hidden');
+        });
+    });
+
+
+    // --- LÓGICA DEL HANGAR ---
+    const shipContainer = document.getElementById('ship-selection-container');
+    document.getElementById('hangar-btn').addEventListener('click', () => { loadProgress(); renderHangar(); hangarModal.classList.remove('hidden'); });
+    document.getElementById('close-hangar-btn').addEventListener('click', () => hangarModal.classList.add('hidden'));
+    
     function renderHangar() {
         shipContainer.innerHTML = '';
         for (const shipId in shipsData) {
@@ -83,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isUnlocked) {
                  for(const upgradeId in ship.upgrades) {
                      const upgradeData = ship.upgrades[upgradeId];
-                     const currentLevel = playerProgress.shipUpgrades[shipId][upgradeId];
+                     const currentLevel = playerProgress.shipUpgrades[shipId][upgradeId] || 0;
                      const cost = upgradeData.cost * (currentLevel + 1);
                      upgradesHTML += `<div class="upgrade-item"><span>${upgradeData.label} [${currentLevel}/${upgradeData.maxLevel}]</span><button data-ship-id="${shipId}" data-upgrade-id="${upgradeId}" ${currentLevel >= upgradeData.maxLevel ? 'disabled' : ''}>${currentLevel >= upgradeData.maxLevel ? 'MAX' : `Mejorar (${cost} C)`}</button></div>`;
                  }
@@ -93,11 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
             shipContainer.appendChild(bay);
         }
     }
-    
-    hangarBtn.addEventListener('click', () => { loadProgress(); renderHangar(); hangarModal.classList.remove('hidden'); });
-    closeHangarBtn.addEventListener('click', () => hangarModal.classList.add('hidden'));
-    closeHangarCrossBtn.addEventListener('click', () => hangarModal.classList.add('hidden'));
-
     shipContainer.addEventListener('click', (e) => {
         const target = e.target;
         const shipId = target.dataset.shipId;
@@ -109,9 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 playerProgress.unlockedShips.push(shipId);
                 saveProgress();
                 renderHangar();
-            } else {
-                alert('Créditos insuficientes.');
-            }
+            } else { alert('Créditos insuficientes.'); }
         } else if (target.classList.contains('select-btn')) {
             playerProgress.selectedShip = shipId;
             saveProgress();
@@ -119,65 +151,38 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (target.dataset.upgradeId) {
             const upgradeId = target.dataset.upgradeId;
             const upgradeData = shipsData[shipId].upgrades[upgradeId];
-            const currentLevel = playerProgress.shipUpgrades[shipId][upgradeId];
+            const currentLevel = playerProgress.shipUpgrades[shipId][upgradeId] || 0;
             const cost = upgradeData.cost * (currentLevel + 1);
             if(playerProgress.currency >= cost) {
                 playerProgress.currency -= cost;
-                playerProgress.shipUpgrades[shipId][upgradeId]++;
+                playerProgress.shipUpgrades[shipId][upgradeId] = (playerProgress.shipUpgrades[shipId][upgradeId] || 0) + 1;
                 saveProgress();
                 renderHangar();
-            } else {
-                alert('Créditos insuficientes.');
-            }
+            } else { alert('Créditos insuficientes.'); }
         }
     });
 
-    // --- LÓGICA DE OTROS BOTONES ---
-    document.getElementById('new-game-btn').addEventListener('click', () => { window.location.href = 'game.html'; });
-    const creditsBtn = document.getElementById('credits-btn');
-    const creditsModal = document.getElementById('credits-modal');
-    const closeCreditsBtn = document.getElementById('close-credits-btn');
-    creditsBtn.addEventListener('click', () => creditsModal.classList.remove('hidden'));
-    closeCreditsBtn.addEventListener('click', () => creditsModal.classList.add('hidden'));
+    // --- LÓGICA DE RÉCORDS ---
+    const recordsList = document.getElementById('records-list');
+    const recordsTitle = document.getElementById('records-title');
+    document.getElementById('records-btn').addEventListener('click', () => { recordsTitle.textContent = 'Selecciona una tabla'; recordsList.innerHTML = ''; recordsModal.classList.remove('hidden'); });
+    document.getElementById('show-standard-records').addEventListener('click', () => { recordsTitle.textContent = 'Campaña'; populateHighScores(HIGH_SCORES_KEY); });
+    document.getElementById('show-boss-rush-records').addEventListener('click', () => { recordsTitle.textContent = 'Boss Rush'; populateHighScores(BOSS_RUSH_HIGH_SCORES_KEY); });
+    function initializeHighScores() { if (!localStorage.getItem(HIGH_SCORES_KEY)) { const defaultScores = [{name:"ACE_PILOT",score:150000},{name:"VOID_DRIFTER",score:100000},{name:"NOVA_STRIKER",score:75000},{name:"CYGNUS_X1",score:40000},{name:"ROOKIE",score:10000}]; localStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(defaultScores)); } if (!localStorage.getItem(BOSS_RUSH_HIGH_SCORES_KEY)) { const defaultScores = [{name:"TITAN_SLAYER",score:250000},{name:"JUGGERNAUT",score:180000},{name:"WARLORD",score:120000},{name:"GLADIATOR",score:80000},{name:"SURVIVOR",score:50000}]; localStorage.setItem(BOSS_RUSH_HIGH_SCORES_KEY, JSON.stringify(defaultScores)); } }
+    function populateHighScores(key) { const highScores = JSON.parse(localStorage.getItem(key)) || []; recordsList.innerHTML = highScores.length === 0 ? '<li>No hay puntuaciones todavía.</li>' : highScores.map(scoreEntry => `<li><span class="name">${scoreEntry.name}</span> <span class="score">${scoreEntry.score}</span></li>`).join(''); }
     
-    const achievementsBtn = document.getElementById('achievements-btn');
-    const achievementsModal = document.getElementById('achievements-modal');
-    const closeAchievementsBtn = document.getElementById('close-achievements-btn');
-    const ACHIEVEMENTS_KEY = 'aceCraftAchievements';
-
-    // Lista de logros actualizada para coincidir con el juego
+    // --- LÓGICA DE LOGROS ---
     const achievementDefinitions = {
-        'level5': { title: "Superviviente Nato", description: "Alcanza el nivel 5 en una partida." },
+        'level5': { title: "Superviviente Nato", description: "Completa 5 misiones." },
         'combo50': { title: "Maestro del Combo", description: "Alcanza un combo de 50." },
         'noHitBoss': { title: "Intocable", description: "Derrota a un jefe sin recibir daño." },
-        'minions100': { title: "Aniquilador", description: "Destruye 100 secuaces en una partida." },
-        'allPowerups': { title: "Coleccionista", description: "Usa todos los tipos de power-ups en una partida." },
-        'bossHunter': { title: "Cazador de Gigantes", description: "Derrota 3 jefes en una misma partida." },
-        'laserMaster': { title: "Poder Desatado", description: "Usa el Láser especial 5 veces en una partida." },
-        'closeCall': { title: "Al Filo de la Muerte", description: "Termina un nivel con menos del 10% de vida." },
-        'creditHoarder': { title: "Botín de Guerra", description: "Consigue 250 créditos en una sola misión." }
+        'allShips': { title: "Coleccionista de Élite", description: "Desbloquea todas las naves." }
     };
+    document.getElementById('achievements-btn').addEventListener('click', () => { populateAchievements(); achievementsModal.classList.remove('hidden'); });
+    document.getElementById('close-achievements-btn').addEventListener('click', () => achievementsModal.classList.add('hidden'));
+    function populateAchievements() { const saved = localStorage.getItem(ACHIEVEMENTS_KEY); const savedAchievements = saved ? JSON.parse(saved) : {}; const list = document.getElementById('achievements-list'); list.innerHTML = ''; for (const id in achievementDefinitions) { const isUnlocked = savedAchievements[id] ? savedAchievements[id].unlocked : false; const item = achievementDefinitions[id]; const li = document.createElement('li'); li.innerHTML = `<strong>${item.title}:</strong> ${item.description}`; li.classList.add(isUnlocked ? 'unlocked' : 'locked'); list.appendChild(li); } }
     
-    function populateAchievements() {
-        const saved = localStorage.getItem(ACHIEVEMENTS_KEY);
-        const savedAchievements = saved ? JSON.parse(saved) : {};
-        const list = document.getElementById('achievements-list');
-        list.innerHTML = '';
-        for (const id in achievementDefinitions) {
-            const isUnlocked = savedAchievements[id] ? savedAchievements[id].unlocked : false;
-            const item = achievementDefinitions[id];
-            const li = document.createElement('li');
-            li.innerHTML = `<strong>${item.title}:</strong> ${item.description}`;
-            li.classList.add(isUnlocked ? 'unlocked' : 'locked');
-            list.appendChild(li);
-        }
-    }
-    achievementsBtn.addEventListener('click', () => {
-        populateAchievements();
-        achievementsModal.classList.remove('hidden');
-    });
-    closeAchievementsBtn.addEventListener('click', () => achievementsModal.classList.add('hidden'));
-
-    // Carga inicial de datos del jugador
+    // --- INICIALIZACIÓN ---
     loadProgress();
+    initializeHighScores();
 });

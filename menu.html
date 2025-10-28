@@ -12,38 +12,44 @@
     <div class="menu-container">
         <h1 class="game-title">AceCraft Evolution</h1>
         <div class="currency-display">Créditos: <span id="total-currency-display">0</span></div>
+        <!-- Nuevo Récord de Campaña -->
+        <div class="campaign-record-display">Récord Campaña: <span id="campaign-highscore-display">0</span></div>
+
         <div class="button-container">
-            <button id="new-game-btn" class="menu-button">Lanzar Misión</button>
+            <button id="campaign-btn" class="menu-button">Campaña</button>
+            <button id="infinite-mode-btn" class="menu-button">Modo Infinito</button>
             <button id="hangar-btn" class="menu-button">Hangar</button>
+            <button id="records-btn" class="menu-button">Récords</button>
             <button id="achievements-btn" class="menu-button">Logros</button>
-            <button id="credits-btn" class="menu-button">Créditos</button>
         </div>
     </div>
 
-    <!-- Modal del Hangar -->
-    <div id="hangar-modal" class="modal hidden">
-        <button id="close-hangar-cross-btn" class="modal-close-cross">&times;</button>
-        <h2>Hangar de Naves</h2>
-        <div id="ship-selection-container">
-            <!-- Las naves se insertarán aquí con JS -->
+    <!-- Modal de Selección de Misión -->
+    <div id="campaign-modal" class="modal hidden">
+        <button class="modal-close-cross close-modal-btn">&times;</button>
+        <h2>Selecciona una Misión</h2>
+        <div id="mission-selection-container" class="difficulty-options">
+            <button class="menu-button mission-btn" data-mission-html="game1.html">Misión 1</button>
+            <button class="menu-button mission-btn" data-mission-html="game2.html">Misión 2</button>
+            <button class="menu-button mission-btn" data-mission-html="game3.html">Misión 3</button>
         </div>
-        <button id="close-hangar-btn" class="modal-close-btn">Cerrar Hangar</button>
     </div>
 
-    <!-- Modal de Logros -->
-    <div id="achievements-modal" class="modal hidden">
-        <h2>Logros</h2>
-        <ul id="achievements-list"></ul>
-        <button id="close-achievements-btn" class="modal-close-btn">Volver</button>
+    <!-- Modal de Selección de Dificultad -->
+    <div id="difficulty-modal" class="modal hidden">
+        <button class="modal-close-cross close-modal-btn">&times;</button>
+        <h2>Selecciona Dificultad</h2>
+        <div class="difficulty-options">
+            <button class="menu-button difficulty-btn" data-difficulty="0.75">Fácil</button>
+            <button class="menu-button difficulty-btn" data-difficulty="1.0">Normal</button>
+            <button class="menu-button difficulty-btn" data-difficulty="1.5">Difícil</button>
+        </div>
     </div>
-
-    <!-- Modal de Créditos -->
-    <div id="credits-modal" class="modal hidden">
-        <h2>Créditos</h2>
-        <p>Un juego creado por</p>
-        <p class="credits-name">DZM STUDIOS</p>
-        <button id="close-credits-btn" class="modal-close-btn">Volver</button>
-    </div>
+    
+    <!-- Otros Modales -->
+    <div id="records-modal" class="modal hidden"> <button class="modal-close-cross close-modal-btn">&times;</button> <h2>Tabla de Récords</h2> <div class="records-options"> <button id="show-campaign-records" class="menu-button">Campaña</button> <button id="show-infinite-records" class="menu-button">Modo Infinito</button> </div> <h3 id="records-title"></h3> <ol id="records-list"></ol></div>
+    <div id="hangar-modal" class="modal hidden"> <button class="modal-close-cross close-modal-btn">&times;</button> <h2>Hangar de Naves</h2> <div id="ship-selection-container"></div></div>
+    <div id="achievements-modal" class="modal hidden"> <button class="modal-close-cross close-modal-btn">&times;</button> <h2>Logros</h2> <ul id="achievements-list"></ul></div>
 
     <script src="menu.js"></script>
 </body>
