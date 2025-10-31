@@ -3,16 +3,21 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Misión 1 - AceCraft Evolution</title>
+    <title>Misión 3 - AceCraft Evolution</title>
     <link rel="stylesheet" href="game.css">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
+
+    <!-- Elemento para anunciar la fase actual -->
+    <div id="phase-announcement" class="phase-announcement" style="display: none;"></div>
+
     <div id="lore-modal" class="modal"> <h2 id="lore-title">BRIEFING DE MISIÓN</h2> <p id="lore-text">Cargando datos...</p> <button id="start-mission-btn" class="menu-button" style="margin-top: 20px;">INICIAR MISIÓN</button> </div>
     <div id="special-meter-container" style="display: none;"><div id="special-meter-bar"></div></div>
     <button id="laserBtn" class="hud-button" style="display: none;">⚡ LÁSER ⚡</button>
     <div id="game-over-modal" class="modal" style="display: none;"> <h2>Misión Fallida</h2> <h3 style="color: #ff4d4d;">Volviendo al menú...</h3> </div>
     <div id="mission-complete-modal" class="modal" style="display: none;"> <h2>Misión Completada</h2> <div id="rank-display" class="rank-display">S</div> <div class="results-grid"> <span class="result-label">Puntuación:</span> <span id="results-score" class="result-value">0</span> <span class="result-label">Créditos Base:</span> <span id="results-base-credits" class="result-value">0</span> <span class="result-label">Bonus Rango:</span> <span id="results-rank-bonus" class="result-value">x1.0</span> <span class="result-label">Bonus Dificultad:</span> <span id="results-difficulty-bonus" class="result-value">x1.0</span> <hr style="grid-column: span 2; border-color: #00ffff55;"> <span class="result-label">Total Créditos:</span> <span id="results-total-credits" class="result-value">0</span> </div> <button id="return-to-menu-btn" class="menu-button" style="margin-top: 20px;">Volver al Menú</button> </div>
+    
     <script src="game3.js"></script>
 </body>
 </html>

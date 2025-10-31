@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Modo Infinito - AceCraft Evolution</title>
+    <link rel="stylesheet" href="game.css">
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="phase-announcement" class="phase-announcement" style="display: none;"></div>
+
+    <div id="lore-modal" class="modal"> 
+        <h2 id="lore-title">MODO INFINITO</h2> 
+        <p id="lore-text">Sobrevive el mayor tiempo posible contra oleadas interminables de enemigos y jefes cada vez más poderosos. No hay escapatoria, solo la gloria de un nuevo récord. ¡Demuestra cuánto puedes resistir!</p> 
+        <button id="start-mission-btn" class="menu-button" style="margin-top: 20px;">INICIAR</button> 
+    </div>
+
+    <div id="special-meter-container" style="display: none;"><div id="special-meter-bar"></div></div>
+    <button id="laserBtn" class="hud-button" style="display: none;">⚡ LÁSER ⚡</button>
+
+    <!-- Modal de Game Over modificado para mostrar la puntuación -->
+    <div id="game-over-modal" class="modal" style="display: none;"> 
+        <h2>FIN DE LA PARTIDA</h2> 
+        <h3 style="color: #ffd700;">Puntuación Final: <span id="final-score-display">0</span></h3>
+        <p>Tu récord ha sido guardado.</p>
+        <h4 style="color: #00ffff;">Volviendo al menú...</h4> 
+    </div>
+    
+    <script src="game_infinite.js"></script>
+</body>
+</html>

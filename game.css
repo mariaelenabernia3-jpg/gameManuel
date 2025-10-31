@@ -1,7 +1,7 @@
 html, body {
   margin: 0; padding: 0; overflow: hidden;
   background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  touch-action: none; /* Evita acciones táctiles como zoom en móviles */
+  touch-action: none; /* Previene el zoom y scroll en móviles */
 }
 canvas {
   display: block; background: #000; cursor: none;
@@ -41,19 +41,12 @@ canvas {
 #mission-complete-modal .rank-display { font-size: 4rem; font-weight: bold; margin: 10px 0; text-shadow: 0 0 10px #fff; }
 .rank-S { color: #ff00ff; } .rank-A { color: #00ff00; } .rank-B { color: #ffd700; } .rank-C { color: #ffffff; }
 
-/* --- NUEVO ESTILO AÑADIDO --- */
 .phase-announcement {
-    position: fixed;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-family: 'Orbitron', sans-serif;
-    font-size: 3.5rem;
-    font-weight: bold;
-    color: #ffd700;
+    position: fixed; top: 40%; left: 50%;
+    transform: translate(-50%, -50%); font-family: 'Orbitron', sans-serif;
+    font-size: 3.5rem; font-weight: bold; color: #ffd700;
     text-shadow: 0 0 10px #ff8c00, 0 0 20px #ff0000;
-    z-index: 101;
-    pointer-events: none; /* Para que no interfiera con el ratón */
+    z-index: 101; pointer-events: none;
     animation: fadeInOut 2.5s forwards;
 }
 
@@ -62,4 +55,21 @@ canvas {
     20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
     80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
     100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+}
+
+/* --- NUEVO: AJUSTES PARA PANTALLAS MÓVILES --- */
+@media (max-width: 768px) {
+    .modal h2 {
+        font-size: 1.4rem;
+    }
+    .menu-button {
+        font-size: 1.1rem;
+        padding: 12px 28px;
+    }
+    #mission-complete-modal .rank-display {
+        font-size: 3rem;
+    }
+    .phase-announcement {
+        font-size: 2rem;
+    }
 }
